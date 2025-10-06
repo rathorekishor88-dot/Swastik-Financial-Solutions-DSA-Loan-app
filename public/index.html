@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DSA Loan App</title>
+    <style>
+        body { font-family: Arial; background: #667eea; margin: 0; padding: 20px; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 100px auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background: #667eea; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>DSA Loan Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="message" style="color: red;"></p>
+        <p><small>Use: admin / admin123</small></p>
+    </div>
+
+    <script>
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('message').textContent = 'Login successful!';
+                    document.getElementById('message').style.color = 'green';
+                } else {
+                    document.getElementById('message').textContent = data.message;
+                }
+            } catch (error) {
+                document.getElementById('message').textContent = 'Network error';
+            }
+        }
+    </script>
+</body>
+</html>
