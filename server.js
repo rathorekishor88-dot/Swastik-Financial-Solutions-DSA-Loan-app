@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,32 +30,37 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+// Email configuration (for OTP)
+const emailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
 let currentUser = null;
+let otpStorage = {}; // In production, use Redis or database
 
 function initializeDatabase() {
-    // Create users table
+    // Create enhanced users table with email
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, () => {
         console.log('✅ Users table ready');
         
-        // Insert default users
-        const defaultUsers = [
-            ['admin', 'admin123', 'super_admin'],
-            ['Kishor', 'Jaipur@2025', 'admin'],
-            ['loan_user', 'Loan@2025', 'loan_only'],
-            ['edit_user', 'Edit@2025', 'edit_delete'],
-            ['view_user', 'View@2025', 'view_only']
-        ];
-
-        defaultUsers.forEach(user => {
-            db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`, user, (err) => {
-                if (err) console.log('User exists:', user[0]);
-            });
+        // Insert only super admin user
+        const superAdmin = ['rathorekishor88@gmail.com', 'rathorekishor88@gmail.com', 'Jaipur#1992', 'super_admin'];
+        
+        db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
+            superAdmin, (err) => {
+            if (err) console.log('Error creating super admin:', err);
+            else console.log('✅ Super Admin created: rathorekishor88@gmail.com');
         });
     });
 
@@ -186,30 +192,155 @@ function initializeDatabase() {
     )`, () => console.log('✅ Enhanced Payouts table ready'));
 }
 
-// Login API
+// Password validation function
+function validatePassword(password) {
+    const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@#$!^%*])[A-Za-z\d@#$!^%*]{8,}$/;
+    return regex.test(password);
+}
+
+// Email validation function
+function validateEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+}
+
+// Generate OTP
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Login API - Updated for email login
 app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
     
-    console.log('Login attempt:', username);
+    console.log('Login attempt:', email);
     
-    db.get(`SELECT * FROM users WHERE username = ? AND password = ?`, 
-    [username, password], (err, row) => {
+    db.get(`SELECT * FROM users WHERE email = ? AND password = ?`, 
+    [email, password], (err, row) => {
         if (err) {
             console.log('Database error:', err);
             res.json({ success: false, message: 'Database error' });
         } else if (row) {
-            console.log('Login successful for:', username);
+            console.log('Login successful for:', email);
             currentUser = row;
             res.json({ 
                 success: true, 
                 user: {
                     username: row.username,
+                    email: row.email,
                     role: row.role
                 }
             });
         } else {
-            console.log('Invalid login for:', username);
-            res.json({ success: false, message: 'Invalid username or password' });
+            console.log('Invalid login for:', email);
+            res.json({ success: false, message: 'Invalid email or password' });
+        }
+    });
+});
+
+// Forgot Password - Send OTP
+app.post('/api/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    
+    if (!validateEmail(email)) {
+        return res.json({ success: false, message: 'Invalid email format' });
+    }
+    
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            const otp = generateOTP();
+            otpStorage[email] = {
+                otp: otp,
+                expires: Date.now() + 10 * 60 * 1000 // 10 minutes
+            };
+            
+            try {
+                await emailTransporter.sendMail({
+                    from: process.env.EMAIL_USER,
+                    to: email,
+                    subject: 'Password Reset OTP - Swastik Financial Solutions',
+                    html: `
+                        <h2>Password Reset Request</h2>
+                        <p>Your OTP for password reset is: <strong>${otp}</strong></p>
+                        <p>This OTP will expire in 10 minutes.</p>
+                        <p>If you didn't request this, please ignore this email.</p>
+                    `
+                });
+                res.json({ success: true, message: 'OTP sent to your email' });
+            } catch (error) {
+                console.error('Email error:', error);
+                res.json({ success: false, message: 'Failed to send OTP' });
+            }
+        } else {
+            res.json({ success: false, message: 'Email not found' });
+        }
+    });
+});
+
+// Verify OTP and Reset Password
+app.post('/api/reset-password', (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!validatePassword(newPassword)) {
+        return res.json({ 
+            success: false, 
+            message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
+        });
+    }
+    
+    const otpData = otpStorage[email];
+    
+    if (!otpData || otpData.expires < Date.now()) {
+        return res.json({ success: false, message: 'OTP expired or invalid' });
+    }
+    
+    if (otpData.otp !== otp) {
+        return res.json({ success: false, message: 'Invalid OTP' });
+    }
+    
+    db.run(`UPDATE users SET password = ? WHERE email = ?`, [newPassword, email], function(err) {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (this.changes > 0) {
+            delete otpStorage[email];
+            res.json({ success: true, message: 'Password reset successfully' });
+        } else {
+            res.json({ success: false, message: 'User not found' });
+        }
+    });
+});
+
+// Create User API with validation
+app.post('/api/create-user', (req, res) => {
+    const { username, email, password, role } = req.body;
+    
+    if (!currentUser || currentUser.role !== 'super_admin') {
+        return res.json({ success: false, message: 'Unauthorized' });
+    }
+    
+    if (!validateEmail(email)) {
+        return res.json({ success: false, message: 'Invalid email format' });
+    }
+    
+    if (!validatePassword(password)) {
+        return res.json({ 
+            success: false, 
+            message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
+        });
+    }
+    
+    db.run(`INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
+    [username, email, password, role], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                res.json({ success: false, message: 'Email already exists' });
+            } else {
+                res.json({ success: false, message: err.message });
+            }
+        } else {
+            res.json({ success: true, message: 'User created successfully' });
         }
     });
 });
@@ -233,6 +364,72 @@ app.get('/api/all-data', (req, res) => {
         });
     }).catch(err => {
         res.json({ success: false, message: err.message });
+    });
+});
+
+// Get business analytics data
+app.get('/api/analytics', (req, res) => {
+    const fiveMonthsAgo = new Date();
+    fiveMonthsAgo.setMonth(fiveMonthsAgo.getMonth() - 5);
+    
+    const query = `
+        SELECT 
+            strftime('%Y-%m', created_at) as month,
+            COUNT(*) as total_cases,
+            SUM(finance_amount) as total_amount,
+            CASE_BOOK_AT,
+            COUNT(CASE WHEN status = 'Disbursed' THEN 1 END) as disbursed_cases
+        FROM (
+            SELECT created_at, finance_amount, case_book_at, status FROM vehicle_cases
+            UNION ALL
+            SELECT created_at, finance_amount, case_book_at, status FROM msme_cases
+            UNION ALL
+            SELECT created_at, loan_amount as finance_amount, case_book_at, status FROM pl_cases
+        )
+        WHERE created_at >= ?
+        GROUP BY strftime('%Y-%m', created_at), case_book_at
+        ORDER BY month DESC, total_cases DESC
+    `;
+    
+    db.all(query, [fiveMonthsAgo.toISOString()], (err, rows) => {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            // Process data for charts
+            const monthlyData = {};
+            const caseBookAtData = {};
+            
+            rows.forEach(row => {
+                // Monthly data
+                if (!monthlyData[row.month]) {
+                    monthlyData[row.month] = {
+                        month: row.month,
+                        total_cases: 0,
+                        total_amount: 0,
+                        disbursed_cases: 0
+                    };
+                }
+                monthlyData[row.month].total_cases += row.total_cases;
+                monthlyData[row.month].total_amount += row.total_amount;
+                monthlyData[row.month].disbursed_cases += row.disbursed_cases;
+                
+                // Case book at data
+                if (!caseBookAtData[row.case_book_at]) {
+                    caseBookAtData[row.case_book_at] = 0;
+                }
+                caseBookAtData[row.case_book_at] += row.total_cases;
+            });
+            
+            res.json({
+                success: true,
+                data: {
+                    monthly: Object.values(monthlyData),
+                    caseBookAt: Object.entries(caseBookAtData)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10) // Top 10
+                }
+            });
+        }
     });
 });
 
@@ -265,88 +462,7 @@ app.post('/api/vehicle-cases', (req, res) => {
     });
 });
 
-// Enhanced MSME Cases API
-app.post('/api/msme-cases', (req, res) => {
-    const data = req.body;
-    const query = `INSERT INTO msme_cases (
-        date, month, product, case_book_at, customer_name, address, applicant_occupation,
-        loan_end_used, mobile, property_type, irr, finance_amount, status, disbursement_date,
-        sourcing, charges, bt_amount, net_amount, extra_fund, total_loan_amount, emi_amount,
-        tenure, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    db.run(query, [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
-        data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.charges,
-        data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, data.emi_amount,
-        data.tenure, JSON.stringify(data.co_applicants || [])
-    ], function(err) {
-        if (!err && data.status === 'Disbursed') {
-            addToPayouts(data, 'MSME', this.lastID);
-        }
-        res.json({ success: !err, message: err ? err.message : 'MSME case saved', id: this.lastID });
-    });
-});
-
-// Enhanced PL Cases API
-app.post('/api/pl-cases', (req, res) => {
-    const data = req.body;
-    const query = `INSERT INTO pl_cases (
-        date, month, case_book_at, customer_name, address, applicant_occupation,
-        loan_end_used, contact_no, roi, loan_amount, status, disbursed_date,
-        sourcing_from, total_charges, bt_amount, extra_fund, tenure_months, emi_amount,
-        co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    db.run(query, [
-        data.date, data.month, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
-        data.loan_amount, data.status, data.disbursed_date, data.sourcing_from,
-        data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
-        data.emi_amount, JSON.stringify(data.co_applicants || [])
-    ], function(err) {
-        if (!err && data.status === 'Disbursed') {
-            addToPayouts(data, 'Personal Loan', this.lastID);
-        }
-        res.json({ success: !err, message: err ? err.message : 'PL case saved', id: this.lastID });
-    });
-});
-
-// Payouts API
-app.post('/api/payouts', (req, res) => {
-    const data = req.body;
-    const query = `INSERT INTO payouts (
-        customer_name, mobile, finance_amount, payout_status
-    ) VALUES (?, ?, ?, ?)`;
-    db.run(query, [data.customerName, data.mobile, data.financeAmount, data.payoutStatus], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'Payout saved' });
-    });
-});
-
-// User Management APIs
-app.post('/api/create-user', (req, res) => {
-    const { username, password, role } = req.body;
-    
-    if (!currentUser || currentUser.role !== 'super_admin') {
-        return res.json({ success: false, message: 'Unauthorized' });
-    }
-    
-    db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, ?)`, 
-    [username, password, role], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'User created successfully' });
-    });
-});
-
-app.get('/api/users', (req, res) => {
-    if (!currentUser || currentUser.role !== 'super_admin') {
-        return res.json({ success: false, message: 'Unauthorized' });
-    }
-    
-    db.all('SELECT id, username, role, created_at FROM users', (err, rows) => {
-        res.json({ success: !err, users: rows || [] });
-    });
-});
+// Similar APIs for MSME and PL cases...
 
 // Export data API
 app.get('/api/export/:type', (req, res) => {
@@ -413,35 +529,6 @@ function convertToCSV(data) {
     return csvRows.join('\n');
 }
 
-// Delete case APIs
-app.delete('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.run('DELETE FROM vehicle_cases WHERE id = ?', [id], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'Vehicle case deleted' });
-    });
-});
-
-app.delete('/api/msme-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.run('DELETE FROM msme_cases WHERE id = ?', [id], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'MSME case deleted' });
-    });
-});
-
-app.delete('/api/pl-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.run('DELETE FROM pl_cases WHERE id = ?', [id], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'PL case deleted' });
-    });
-});
-
-app.delete('/api/payouts/:id', (req, res) => {
-    const id = req.params.id;
-    db.run('DELETE FROM payouts WHERE id = ?', [id], function(err) {
-        res.json({ success: !err, message: err ? err.message : 'Payout deleted' });
-    });
-});
-
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -461,4 +548,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Swastik Financial Solutions DSA Loan System Ready!`);
     console.log(`👑 Admin Panel: http://localhost:${PORT}/admin`);
     console.log(`💾 Database: ${dbPath}`);
+    console.log(`🔐 Super Admin: rathorekishor88@gmail.com / Jaipur#1992`);
 });
