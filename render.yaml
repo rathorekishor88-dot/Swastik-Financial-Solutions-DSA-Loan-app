@@ -1,9 +1,11 @@
 services:
   - type: web
-    name: dsa-loan-app
+    name: swastik-financial-dsa-loan
     env: node
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+    plan: free
+    branch: main
