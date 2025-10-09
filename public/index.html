@@ -57,8 +57,7 @@
             border-color: #667eea;
         }
         .btn {
-            width: 100%;
-            padding: 12px;
+            padding: 12px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -122,7 +121,7 @@
             gap: 10px;
             flex-wrap: wrap;
         }
-        .logout-btn, .sync-btn {
+        .logout-btn, .sync-btn, .admin-btn, .export-btn {
             padding: 10px 20px;
             color: white;
             border: none;
@@ -132,6 +131,8 @@
         }
         .logout-btn { background: #ff4757; }
         .sync-btn { background: #4CAF50; }
+        .admin-btn { background: #667eea; }
+        .export-btn { background: #ff9800; }
         .dashboard {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -197,12 +198,14 @@
             font-weight: 600;
             margin-bottom: 20px;
         }
-        .table-container { overflow-x: auto; }
+        .table-container { 
+            overflow-x: auto;
+            margin-top: 20px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            min-width: 600px;
+            min-width: 800px;
         }
         table th, table td {
             padding: 12px;
@@ -226,6 +229,79 @@
         }
         .edit-btn { background: #4CAF50; color: white; }
         .delete-btn { background: #ff4757; color: white; }
+
+        /* Form Styles */
+        .form-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .co-applicant-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        .add-co-applicant {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .remove-co-applicant {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .submit-btn { background: #28a745; }
+        .cancel-btn { background: #6c757d; }
     </style>
 </head>
 <body>
@@ -247,10 +323,11 @@
             <div id="successMsg" class="success-msg"></div>
             <div class="info-msg">
                 <p><strong>Default Logins:</strong><br>
-                <strong>Admin:</strong> admin / admin123<br>
+                <strong>Super Admin:</strong> admin / admin123<br>
                 <strong>Admin:</strong> Kishor / Jaipur@2025<br>
-                <strong>View Only:</strong> loan_user / Loan@2025<br>
-                <strong>Edit/Delete:</strong> edit_user / Edit@2025</p>
+                <strong>Loan Only:</strong> loan_user / Loan@2025<br>
+                <strong>Edit/Delete:</strong> edit_user / Edit@2025<br>
+                <strong>View Only:</strong> view_user / View@2025</p>
             </div>
         </div>
     </div>
@@ -261,6 +338,8 @@
             <h1>Swastik Financial Solutions DSA Loan</h1>
             <div class="header-btns">
                 <button class="sync-btn" onclick="loadData()">Refresh Data</button>
+                <button class="export-btn" onclick="exportData()">Export Data</button>
+                <button class="admin-btn" onclick="showAdminPanel()" id="adminBtn" style="display: none;">Admin Panel</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -280,7 +359,7 @@
             </div>
             <div class="stat-card">
                 <h3>Pending Payouts</h3>
-                <div class="value" id="pendingPayouts">₹0</div>
+                <div class="value" id="pendingPayouts">0</div>
             </div>
         </div>
 
@@ -294,7 +373,7 @@
         <!-- Vehicle Cases Section -->
         <div id="vehicleSection" class="content-section active">
             <h2>Vehicle Cases</h2>
-            <button class="add-btn" onclick="addVehicleCase()">+ Add Vehicle Case</button>
+            <button class="add-btn" onclick="showVehicleForm()" id="addVehicleBtn">+ Add Vehicle Case</button>
             <div class="table-container">
                 <table id="vehicleTable">
                     <thead>
@@ -303,13 +382,14 @@
                             <th>Date</th>
                             <th>Customer Name</th>
                             <th>Mobile No</th>
+                            <th>Vehicle No</th>
                             <th>Finance Amount</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="vehicleTableBody">
-                        <tr><td colspan="7" style="text-align: center; color: #666;">No data available</td></tr>
+                        <tr><td colspan="8" style="text-align: center; color: #666;">No data available</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -318,7 +398,7 @@
         <!-- MSME Cases Section -->
         <div id="msmeSection" class="content-section">
             <h2>MSME/HL Cases</h2>
-            <button class="add-btn" onclick="addMSMECase()">+ Add MSME Case</button>
+            <button class="add-btn" onclick="showMSMEForm()" id="addMSMEBtn">+ Add MSME Case</button>
             <div class="table-container">
                 <table id="msmeTable">
                     <thead>
@@ -327,13 +407,14 @@
                             <th>Date</th>
                             <th>Customer Name</th>
                             <th>Mobile No</th>
+                            <th>Property Type</th>
                             <th>Finance Amount</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="msmeTableBody">
-                        <tr><td colspan="7" style="text-align: center; color: #666;">No data available</td></tr>
+                        <tr><td colspan="8" style="text-align: center; color: #666;">No data available</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -342,7 +423,7 @@
         <!-- PL Cases Section -->
         <div id="plSection" class="content-section">
             <h2>Personal Loan Cases</h2>
-            <button class="add-btn" onclick="addPLCase()">+ Add PL Case</button>
+            <button class="add-btn" onclick="showPLForm()" id="addPLBtn">+ Add PL Case</button>
             <div class="table-container">
                 <table id="plTable">
                     <thead>
@@ -366,23 +447,188 @@
         <!-- Payouts Section -->
         <div id="payoutSection" class="content-section">
             <h2>Payouts</h2>
-            <button class="add-btn" onclick="addPayout()">+ Add Payout</button>
+            <button class="add-btn" onclick="showPayoutForm()" id="addPayoutBtn">+ Add Payout</button>
             <div class="table-container">
                 <table id="payoutTable">
                     <thead>
                         <tr>
                             <th>Sr No</th>
+                            <th>Date</th>
                             <th>Customer Name</th>
                             <th>Mobile No</th>
                             <th>Finance Amount</th>
+                            <th>Product</th>
                             <th>Payout Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="payoutTableBody">
-                        <tr><td colspan="6" style="text-align: center; color: #666;">No data available</td></tr>
+                        <tr><td colspan="8" style="text-align: center; color: #666;">No data available</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Vehicle Case Form -->
+        <div id="vehicleForm" class="form-container">
+            <h2>Add Vehicle Case</h2>
+            <form id="vehicleCaseForm">
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Month *</label>
+                            <input type="text" name="month" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Product *</label>
+                            <input type="text" name="product" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Case Book At *</label>
+                            <input type="text" name="case_book_at" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Address *</label>
+                            <textarea name="address" required></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applicant Details -->
+                <div class="form-section">
+                    <h3>Applicant Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Applicant Occupation *</label>
+                            <input type="text" name="applicant_occupation" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Vehicle End Used *</label>
+                            <input type="text" name="vehicle_end_used" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile No *</label>
+                            <input type="text" name="mobile" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Details -->
+                <div class="form-section">
+                    <h3>Vehicle Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Vehicle No</label>
+                            <input type="text" name="vehicle_no">
+                        </div>
+                        <div class="form-group">
+                            <label>Model Year</label>
+                            <input type="text" name="model_year">
+                        </div>
+                        <div class="form-group">
+                            <label>Vehicle Model</label>
+                            <input type="text" name="vehicle_model">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Details -->
+                <div class="form-section">
+                    <h3>Financial Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IRR (%)</label>
+                            <input type="number" step="0.01" name="irr">
+                        </div>
+                        <div class="form-group">
+                            <label>Finance Amount *</label>
+                            <input type="number" step="0.01" name="finance_amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" required>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Disbursed">Disbursed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Add more financial fields as needed -->
+                </div>
+
+                <!-- Co-Applicants Section -->
+                <div class="form-section">
+                    <h3>Co-Applicants</h3>
+                    <div id="vehicleCoApplicantsContainer">
+                        <div class="co-applicant-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Name</label>
+                                    <input type="text" name="co_applicants[0][name]">
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Address</label>
+                                    <textarea name="co_applicants[0][address]"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Contact</label>
+                                    <input type="text" name="co_applicants[0][contact]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="add-co-applicant" onclick="addCoApplicant('vehicle')">+ Add More Co-Applicant</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Similar forms for MSME, PL, and Payout would go here -->
+        <!-- For brevity, I'm showing only the Vehicle form structure -->
+
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="adminModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px;">
+            <h2>Admin Panel - Create User</h2>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="newUsername" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="newPassword" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select id="newUserRole" class="form-control">
+                    <option value="admin">Admin</option>
+                    <option value="loan_only">Loan Only</option>
+                    <option value="view_only">View Only</option>
+                    <option value="edit_delete">Edit/Delete</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn" onclick="createUser()">Create User</button>
+                <button class="btn cancel-btn" onclick="hideAdminPanel()">Close</button>
             </div>
         </div>
     </div>
@@ -390,6 +636,7 @@
     <script>
         let currentUser = null;
         let cases = { vehicle: [], msme: [], pl: [], payout: [] };
+        let coApplicantCounters = { vehicle: 1, msme: 1, pl: 1 };
 
         // Login function
         async function login() {
@@ -440,7 +687,25 @@
         function showMainApplication() {
             document.getElementById('loginContainer').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
+            checkPermissions();
             loadData();
+        }
+
+        // Check user permissions
+        function checkPermissions() {
+            if (currentUser.role === 'super_admin' || currentUser.role === 'admin') {
+                document.getElementById('adminBtn').style.display = 'block';
+            }
+            
+            if (currentUser.role === 'view_only') {
+                document.querySelectorAll('.add-btn, .edit-btn, .delete-btn').forEach(btn => {
+                    btn.style.display = 'none';
+                });
+            } else if (currentUser.role === 'loan_only') {
+                document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+                    btn.style.display = 'none';
+                });
+            }
         }
 
         // Load data from server
@@ -491,23 +756,38 @@
             tbody.innerHTML = '';
             
             if (cases[type].length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">No data available</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #666;">No data available</td></tr>`;
                 return;
             }
             
             cases[type].forEach((item, index) => {
                 const row = tbody.insertRow();
                 
-                if (type === 'vehicle' || type === 'msme') {
+                if (type === 'vehicle') {
                     row.innerHTML = `
                         <td>${index + 1}</td>
                         <td>${item.date || '-'}</td>
                         <td>${item.customer_name}</td>
                         <td>${item.mobile}</td>
+                        <td>${item.vehicle_no || '-'}</td>
                         <td>₹${parseInt(item.finance_amount || 0).toLocaleString('en-IN')}</td>
                         <td>${item.status}</td>
                         <td class="action-btns">
-                            <button class="edit-btn">Edit</button>
+                            <button class="edit-btn" onclick="editCase('${type}', ${item.id})">Edit</button>
+                            <button class="delete-btn" onclick="deleteCase('${type}', ${item.id})">Delete</button>
+                        </td>
+                    `;
+                } else if (type === 'msme') {
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${item.date || '-'}</td>
+                        <td>${item.customer_name}</td>
+                        <td>${item.mobile}</td>
+                        <td>${item.property_type || '-'}</td>
+                        <td>₹${parseInt(item.finance_amount || 0).toLocaleString('en-IN')}</td>
+                        <td>${item.status}</td>
+                        <td class="action-btns">
+                            <button class="edit-btn" onclick="editCase('${type}', ${item.id})">Edit</button>
                             <button class="delete-btn" onclick="deleteCase('${type}', ${item.id})">Delete</button>
                         </td>
                     `;
@@ -520,19 +800,21 @@
                         <td>₹${parseInt(item.loan_amount || 0).toLocaleString('en-IN')}</td>
                         <td>${item.status}</td>
                         <td class="action-btns">
-                            <button class="edit-btn">Edit</button>
+                            <button class="edit-btn" onclick="editCase('${type}', ${item.id})">Edit</button>
                             <button class="delete-btn" onclick="deleteCase('${type}', ${item.id})">Delete</button>
                         </td>
                     `;
                 } else if (type === 'payout') {
                     row.innerHTML = `
                         <td>${index + 1}</td>
+                        <td>${item.date || '-'}</td>
                         <td>${item.customer_name}</td>
                         <td>${item.mobile}</td>
                         <td>₹${parseInt(item.finance_amount || 0).toLocaleString('en-IN')}</td>
+                        <td>${item.product || '-'}</td>
                         <td>${item.payout_status}</td>
                         <td class="action-btns">
-                            <button class="edit-btn">Edit</button>
+                            <button class="edit-btn" onclick="editCase('${type}', ${item.id})">Edit</button>
                             <button class="delete-btn" onclick="deleteCase('${type}', ${item.id})">Delete</button>
                         </td>
                     `;
@@ -540,58 +822,117 @@
             });
         }
 
+        // Form display functions
+        function showVehicleForm() {
+            hideAllForms();
+            document.getElementById('vehicleForm').style.display = 'block';
+        }
+
+        function showMSMEForm() {
+            hideAllForms();
+            // Similar to showVehicleForm but for MSME
+            alert('MSME form will be implemented similarly');
+        }
+
+        function showPLForm() {
+            hideAllForms();
+            // Similar to showVehicleForm but for PL
+            alert('PL form will be implemented similarly');
+        }
+
+        function showPayoutForm() {
+            hideAllForms();
+            // Similar to showVehicleForm but for Payout
+            alert('Payout form will be implemented similarly');
+        }
+
+        function hideAllForms() {
+            document.querySelectorAll('.form-container').forEach(form => {
+                form.style.display = 'none';
+            });
+        }
+
+        // Co-applicant management
+        function addCoApplicant(type) {
+            if (coApplicantCounters[type] >= 5) {
+                alert('Maximum 5 co-applicants allowed');
+                return;
+            }
+
+            coApplicantCounters[type]++;
+            const container = document.getElementById(type + 'CoApplicantsContainer');
+            const newSection = document.createElement('div');
+            newSection.className = 'co-applicant-section';
+            newSection.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Name</label>
+                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][name]">
+                    </div>
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Address</label>
+                        <textarea name="co_applicants[${coApplicantCounters[type]-1}][address]"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Contact</label>
+                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][contact]">
+                    </div>
+                </div>
+                <button type="button" class="remove-co-applicant" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(newSection);
+        }
+
+        // Form submission
+        document.getElementById('vehicleCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Process co-applicants
+            const coApplicants = [];
+            for (let i = 0; i < coApplicantCounters.vehicle; i++) {
+                const name = data[`co_applicants[${i}][name]`];
+                const address = data[`co_applicants[${i}][address]`];
+                const contact = data[`co_applicants[${i}][contact]`];
+                
+                if (name && address && contact) {
+                    coApplicants.push({ name, address, contact });
+                }
+            }
+            data.co_applicants = coApplicants;
+
+            try {
+                const response = await fetch('/api/vehicle-cases', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Vehicle case saved successfully!');
+                    hideAllForms();
+                    loadData();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        });
+
         // Tab navigation
         function showTab(tabName) {
-            // Hide all sections
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
             });
-            
-            // Remove active class from all tabs
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            
-            // Show selected section and activate tab
             document.getElementById(tabName + 'Section').classList.add('active');
             event.target.classList.add('active');
-        }
-
-        // Add case functions (simplified - will show alerts for now)
-        function addVehicleCase() {
-            const customerName = prompt('Enter Customer Name:');
-            const mobile = prompt('Enter Mobile No:');
-            const amount = prompt('Enter Finance Amount:');
-            if (customerName && mobile && amount) {
-                alert('Vehicle case added! (Full form coming in next update)');
-            }
-        }
-
-        function addMSMECase() {
-            const customerName = prompt('Enter Customer Name:');
-            const mobile = prompt('Enter Mobile No:');
-            const amount = prompt('Enter Finance Amount:');
-            if (customerName && mobile && amount) {
-                alert('MSME case added! (Full form coming in next update)');
-            }
-        }
-
-        function addPLCase() {
-            const customerName = prompt('Enter Customer Name:');
-            const mobile = prompt('Enter Contact No:');
-            const amount = prompt('Enter Loan Amount:');
-            if (customerName && mobile && amount) {
-                alert('PL case added! (Full form coming in next update)');
-            }
-        }
-
-        function addPayout() {
-            const customerName = prompt('Enter Customer Name:');
-            const mobile = prompt('Enter Mobile No:');
-            const amount = prompt('Enter Finance Amount:');
-            if (customerName && mobile && amount) {
-                alert('Payout added! (Full form coming in next update)');
-            }
+            hideAllForms();
         }
 
         // Delete case
@@ -615,6 +956,43 @@
             }
         }
 
+        // Admin panel functions
+        function showAdminPanel() {
+            document.getElementById('adminModal').style.display = 'flex';
+        }
+
+        function hideAdminPanel() {
+            document.getElementById('adminModal').style.display = 'none';
+        }
+
+        async function createUser() {
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newUserRole').value;
+
+            const response = await fetch('/api/create-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+
+            const data = await response.json();
+            alert(data.message);
+            if (data.success) {
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                hideAdminPanel();
+            }
+        }
+
+        // Export data
+        function exportData() {
+            const types = ['vehicle', 'msme', 'pl', 'payout'];
+            types.forEach(type => {
+                window.open(`/api/export/${type}`, '_blank');
+            });
+        }
+
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
@@ -626,6 +1004,7 @@
                 document.getElementById('password').value = '';
                 document.getElementById('errorMsg').textContent = '';
                 document.getElementById('successMsg').textContent = '';
+                hideAllForms();
             }
         }
 
