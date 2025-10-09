@@ -489,7 +489,7 @@
         <!-- MSME Cases Section -->
         <div id="msmeSection" class="content-section">
             <h2>MSME/HL Cases</h2>
-            <button class="add-btn" onclick="addMSMECase()" id="addMSMEBtn">+ Add MSME Case</button>
+            <button class="add-btn" onclick="showMSMEForm()" id="addMSMEBtn">+ Add MSME Case</button>
             <div class="table-container">
                 <table id="msmeTable">
                     <thead>
@@ -514,7 +514,7 @@
         <!-- PL Cases Section -->
         <div id="plSection" class="content-section">
             <h2>Personal Loan Cases</h2>
-            <button class="add-btn" onclick="addPLCase()" id="addPLBtn">+ Add PL Case</button>
+            <button class="add-btn" onclick="showPLForm()" id="addPLBtn">+ Add PL Case</button>
             <div class="table-container">
                 <table id="plTable">
                     <thead>
@@ -538,13 +538,13 @@
         <!-- Payouts Section -->
         <div id="payoutSection" class="content-section">
             <h2>Payouts</h2>
-            <button class="add-btn" onclick="addPayout()" id="addPayoutBtn">+ Add Payout</button>
+            <button class="add-btn" onclick="showPayoutForm()" id="addPayoutBtn">+ Add Payout</button>
             <div class="table-container">
                 <table id="payoutTable">
                     <thead>
                         <tr>
                             <th>Sr No</th>
-                            <th>Date</th>
+                            <th>Payout Date</th>
                             <th>Customer Name</th>
                             <th>Mobile No</th>
                             <th>Finance Amount</th>
@@ -564,8 +564,632 @@
         <div id="vehicleForm" class="form-container">
             <h2>Add Vehicle Case</h2>
             <form id="vehicleCaseForm">
-                <!-- Form content remains the same as before -->
-                <!-- ... -->
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Month *</label>
+                            <input type="text" name="month" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Product *</label>
+                            <input type="text" name="product" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Case Book At *</label>
+                            <input type="text" name="case_book_at" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Address *</label>
+                            <textarea name="address" required></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applicant Details -->
+                <div class="form-section">
+                    <h3>Applicant Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Applicant Occupation *</label>
+                            <input type="text" name="applicant_occupation" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Vehicle End Used *</label>
+                            <input type="text" name="vehicle_end_used" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile No *</label>
+                            <input type="text" name="mobile" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Details -->
+                <div class="form-section">
+                    <h3>Vehicle Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Vehicle No</label>
+                            <input type="text" name="vehicle_no">
+                        </div>
+                        <div class="form-group">
+                            <label>Model Year</label>
+                            <input type="text" name="model_year">
+                        </div>
+                        <div class="form-group">
+                            <label>Vehicle Model</label>
+                            <input type="text" name="vehicle_model">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Details -->
+                <div class="form-section">
+                    <h3>Financial Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IRR (%)</label>
+                            <input type="number" step="0.01" name="irr">
+                        </div>
+                        <div class="form-group">
+                            <label>Finance Amount *</label>
+                            <input type="number" step="0.01" name="finance_amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" required>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Disbursed">Disbursed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Disbursement Date</label>
+                            <input type="date" name="disbursement_date">
+                        </div>
+                        <div class="form-group">
+                            <label>Sourcing</label>
+                            <input type="text" name="sourcing">
+                        </div>
+                        <div class="form-group">
+                            <label>Sourcing By</label>
+                            <input type="text" name="sourcing_by">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RC Limit Amount</label>
+                            <input type="number" step="0.01" name="rc_limit_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Charges</label>
+                            <input type="number" step="0.01" name="charges">
+                        </div>
+                        <div class="form-group">
+                            <label>RTO Hold</label>
+                            <input type="text" name="rto_hold">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>BT Amount</label>
+                            <input type="number" step="0.01" name="bt_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Deferral Hold Company</label>
+                            <input type="text" name="deferral_hold_company">
+                        </div>
+                        <div class="form-group">
+                            <label>Deferral Hold Our Side</label>
+                            <input type="text" name="deferral_hold_our_side">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Release Amount</label>
+                            <input type="number" step="0.01" name="release_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Deferral Release Amount</label>
+                            <input type="number" step="0.01" name="deferral_release_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>RTO Release Amount</label>
+                            <input type="number" step="0.01" name="rto_release_amount">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Insurance Amount</label>
+                            <input type="number" step="0.01" name="insurance_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Disbursal</label>
+                            <input type="number" step="0.01" name="total_disbursal">
+                        </div>
+                        <div class="form-group">
+                            <label>Extra Fund</label>
+                            <input type="number" step="0.01" name="extra_fund">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RTO Released Name</label>
+                            <input type="text" name="rto_released_name">
+                        </div>
+                        <div class="form-group">
+                            <label>Insurance Type</label>
+                            <input type="text" name="insurance_type">
+                        </div>
+                        <div class="form-group">
+                            <label>Insurance End Date</label>
+                            <input type="date" name="insurance_end_date">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>PDD RC</label>
+                            <input type="text" name="pdd_rc">
+                        </div>
+                        <div class="form-group">
+                            <label>EMI Amount</label>
+                            <input type="number" step="0.01" name="emi_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Tenure (Months)</label>
+                            <input type="number" name="tenure">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Co-Applicants Section -->
+                <div class="form-section">
+                    <h3>Co-Applicants</h3>
+                    <div id="vehicleCoApplicantsContainer">
+                        <div class="co-applicant-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Name</label>
+                                    <input type="text" name="co_applicants[0][name]">
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Address</label>
+                                    <textarea name="co_applicants[0][address]"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Contact</label>
+                                    <input type="text" name="co_applicants[0][contact]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="add-co-applicant" onclick="addCoApplicant('vehicle')">+ Add More Co-Applicant</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MSME Case Form -->
+        <div id="msmeForm" class="form-container">
+            <h2>Add MSME/HL Case</h2>
+            <form id="msmeCaseForm">
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Month *</label>
+                            <input type="text" name="month" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Product *</label>
+                            <input type="text" name="product" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Case Book At *</label>
+                            <input type="text" name="case_book_at" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Address *</label>
+                            <textarea name="address" required></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applicant Details -->
+                <div class="form-section">
+                    <h3>Applicant Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Applicant Occupation *</label>
+                            <input type="text" name="applicant_occupation" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Loan End Used *</label>
+                            <input type="text" name="loan_end_used" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile No *</label>
+                            <input type="text" name="mobile" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Property Type</label>
+                            <input type="text" name="property_type">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Details -->
+                <div class="form-section">
+                    <h3>Financial Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IRR (%)</label>
+                            <input type="number" step="0.01" name="irr">
+                        </div>
+                        <div class="form-group">
+                            <label>Finance Amount *</label>
+                            <input type="number" step="0.01" name="finance_amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" required>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Disbursed">Disbursed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Disbursement Date</label>
+                            <input type="date" name="disbursement_date">
+                        </div>
+                        <div class="form-group">
+                            <label>Sourcing</label>
+                            <input type="text" name="sourcing">
+                        </div>
+                        <div class="form-group">
+                            <label>Sourcing By</label>
+                            <input type="text" name="sourcing_by">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Charges</label>
+                            <input type="number" step="0.01" name="charges">
+                        </div>
+                        <div class="form-group">
+                            <label>BT Amount</label>
+                            <input type="number" step="0.01" name="bt_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Net Amount</label>
+                            <input type="number" step="0.01" name="net_amount">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Extra Fund</label>
+                            <input type="number" step="0.01" name="extra_fund">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Loan Amount</label>
+                            <input type="number" step="0.01" name="total_loan_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>EMI Amount</label>
+                            <input type="number" step="0.01" name="emi_amount">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tenure (Months)</label>
+                            <input type="number" name="tenure">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Co-Applicants Section -->
+                <div class="form-section">
+                    <h3>Co-Applicants</h3>
+                    <div id="msmeCoApplicantsContainer">
+                        <div class="co-applicant-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Name</label>
+                                    <input type="text" name="co_applicants[0][name]">
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Address</label>
+                                    <textarea name="co_applicants[0][address]"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Contact</label>
+                                    <input type="text" name="co_applicants[0][contact]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="add-co-applicant" onclick="addCoApplicant('msme')">+ Add More Co-Applicant</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PL Case Form -->
+        <div id="plForm" class="form-container">
+            <h2>Add Personal Loan Case</h2>
+            <form id="plCaseForm">
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Month *</label>
+                            <input type="text" name="month" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Case Book At *</label>
+                            <input type="text" name="case_book_at" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Address *</label>
+                            <textarea name="address" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Applicant Occupation *</label>
+                            <input type="text" name="applicant_occupation" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loan Details -->
+                <div class="form-section">
+                    <h3>Loan Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Loan End Used *</label>
+                            <input type="text" name="loan_end_used" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact No *</label>
+                            <input type="text" name="contact_no" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ROI (%)</label>
+                            <input type="number" step="0.01" name="roi">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Loan Amount *</label>
+                            <input type="number" step="0.01" name="loan_amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" required>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Disbursed">Disbursed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Disbursed Date</label>
+                            <input type="date" name="disbursed_date">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Details -->
+                <div class="form-section">
+                    <h3>Financial Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Sourcing</label>
+                            <input type="text" name="sourcing">
+                        </div>
+                        <div class="form-group">
+                            <label>Sourcing By</label>
+                            <input type="text" name="sourcing_by">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Charges</label>
+                            <input type="number" step="0.01" name="total_charges">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>BT Amount</label>
+                            <input type="number" step="0.01" name="bt_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>Extra Fund</label>
+                            <input type="number" step="0.01" name="extra_fund">
+                        </div>
+                        <div class="form-group">
+                            <label>Tenure (Months)</label>
+                            <input type="number" name="tenure_months">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>EMI Amount</label>
+                            <input type="number" step="0.01" name="emi_amount">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Co-Applicants Section -->
+                <div class="form-section">
+                    <h3>Co-Applicants</h3>
+                    <div id="plCoApplicantsContainer">
+                        <div class="co-applicant-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Name</label>
+                                    <input type="text" name="co_applicants[0][name]">
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Address</label>
+                                    <textarea name="co_applicants[0][address]"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Co-Applicant 1 Contact</label>
+                                    <input type="text" name="co_applicants[0][contact]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="add-co-applicant" onclick="addCoApplicant('pl')">+ Add More Co-Applicant</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Payout Form -->
+        <div id="payoutForm" class="form-container">
+            <h2>Add Payout</h2>
+            <form id="payoutCaseForm">
+                <div class="form-section">
+                    <h3>Payout Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Payout Date *</label>
+                            <input type="date" name="payout_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Disbursement Date *</label>
+                            <input type="date" name="disbursement_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Product *</label>
+                            <input type="text" name="product" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Case Book At *</label>
+                            <input type="text" name="case_book_at" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile No *</label>
+                            <input type="text" name="mobile" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Finance Amount *</label>
+                            <input type="number" step="0.01" name="finance_amount" required>
+                        </div>
+                        <div class="form-group">
+                            <label>IRR (%)</label>
+                            <input type="number" step="0.01" name="irr">
+                        </div>
+                        <div class="form-group">
+                            <label>Payout Status *</label>
+                            <select name="payout_status" required>
+                                <option value="Pending">Pending</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Hold">Hold</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Payout Percent (%)</label>
+                            <input type="number" step="0.01" name="payout_percent">
+                        </div>
+                        <div class="form-group">
+                            <label>Payout Amount</label>
+                            <input type="number" step="0.01" name="payout_amount">
+                        </div>
+                        <div class="form-group">
+                            <label>GST</label>
+                            <input type="number" step="0.01" name="gst">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>TDS</label>
+                            <input type="number" step="0.01" name="tds">
+                        </div>
+                        <div class="form-group">
+                            <label>Net Amount Received</label>
+                            <input type="number" step="0.01" name="net_amount_received">
+                        </div>
+                        <div class="form-group">
+                            <label>Payout Given to Referrals</label>
+                            <input type="text" name="payout_given_to_referrals">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Net Payout</label>
+                            <input type="number" step="0.01" name="net_payout">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                </div>
             </form>
         </div>
     </div>
@@ -949,7 +1573,7 @@
                 } else if (type === 'payout') {
                     row.innerHTML = `
                         <td>${index + 1}</td>
-                        <td>${item.date || '-'}</td>
+                        <td>${item.payout_date || '-'}</td>
                         <td>${item.customer_name}</td>
                         <td>${item.mobile}</td>
                         <td>₹${parseInt(item.finance_amount || 0).toLocaleString('en-IN')}</td>
@@ -964,28 +1588,123 @@
             });
         }
 
-        // Form display functions - Only Vehicle form is implemented
+        // Form display functions
         function showVehicleForm() {
             hideAllForms();
             document.getElementById('vehicleForm').style.display = 'block';
         }
 
-        function addMSMECase() {
-            alert('MSME form will be implemented in next version. Currently only Vehicle cases are fully implemented.');
+        function showMSMEForm() {
+            hideAllForms();
+            document.getElementById('msmeForm').style.display = 'block';
         }
 
-        function addPLCase() {
-            alert('Personal Loan form will be implemented in next version. Currently only Vehicle cases are fully implemented.');
+        function showPLForm() {
+            hideAllForms();
+            document.getElementById('plForm').style.display = 'block';
         }
 
-        function addPayout() {
-            alert('Manual payout form will be implemented in next version. Payouts are automatically created for disbursed cases.');
+        function showPayoutForm() {
+            hideAllForms();
+            document.getElementById('payoutForm').style.display = 'block';
         }
 
         function hideAllForms() {
             document.querySelectorAll('.form-container').forEach(form => {
                 form.style.display = 'none';
             });
+        }
+
+        // Co-applicant management
+        function addCoApplicant(type) {
+            if (coApplicantCounters[type] >= 5) {
+                alert('Maximum 5 co-applicants allowed');
+                return;
+            }
+
+            coApplicantCounters[type]++;
+            const container = document.getElementById(type + 'CoApplicantsContainer');
+            const newSection = document.createElement('div');
+            newSection.className = 'co-applicant-section';
+            newSection.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Name</label>
+                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][name]">
+                    </div>
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Address</label>
+                        <textarea name="co_applicants[${coApplicantCounters[type]-1}][address]"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Co-Applicant ${coApplicantCounters[type]} Contact</label>
+                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][contact]">
+                    </div>
+                </div>
+                <button type="button" class="remove-co-applicant" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(newSection);
+        }
+
+        // Form submission handlers
+        document.getElementById('vehicleCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('vehicle', this);
+        });
+
+        document.getElementById('msmeCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('msme', this);
+        });
+
+        document.getElementById('plCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('pl', this);
+        });
+
+        document.getElementById('payoutCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('payout', this);
+        });
+
+        async function submitForm(type, form) {
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Process co-applicants for loan types
+            if (type !== 'payout') {
+                const coApplicants = [];
+                for (let i = 0; i < coApplicantCounters[type]; i++) {
+                    const name = data[`co_applicants[${i}][name]`];
+                    const address = data[`co_applicants[${i}][address]`];
+                    const contact = data[`co_applicants[${i}][contact]`];
+                    
+                    if (name && address && contact) {
+                        coApplicants.push({ name, address, contact });
+                    }
+                }
+                data.co_applicants = coApplicants;
+            }
+
+            try {
+                const endpoint = type === 'payout' ? '/api/payouts' : `/api/${type}-cases`;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} case saved successfully!`);
+                    hideAllForms();
+                    loadData(); // Refresh data to show latest entries
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
         }
 
         // Tab navigation
@@ -1000,6 +1719,27 @@
             event.target.classList.add('active');
             hideAllForms();
             document.getElementById('analyticsSection').style.display = 'none';
+        }
+
+        // Delete case
+        async function deleteCase(type, id) {
+            if (!confirm('Are you sure you want to delete this record?')) return;
+            
+            try {
+                const response = await fetch(`/api/${type}-cases/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Record deleted successfully!');
+                    loadData();
+                } else {
+                    alert('Error deleting record: ' + data.message);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
         }
 
         // Admin panel functions
