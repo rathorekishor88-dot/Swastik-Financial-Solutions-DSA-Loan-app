@@ -1,11 +1,12 @@
 {
-  "name": "dsa-loan-app",
-  "version": "1.0.0",
-  "description": "DSA Loan Management System",
+  "name": "swastik-financial-solutions-dsa-loan-app",
+  "version": "2.0.0",
+  "description": "Comprehensive DSA Loan Management System for Swastik Financial Solutions",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "npm install"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -14,6 +15,17 @@
     "body-parser": "^1.20.2"
   },
   "engines": {
-    "node": "18.x"
-  }
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "loan",
+    "dsa",
+    "finance",
+    "management",
+    "swastik",
+    "financial",
+    "solutions"
+  ],
+  "author": "Swastik Financial Solutions",
+  "license": "MIT"
 }
