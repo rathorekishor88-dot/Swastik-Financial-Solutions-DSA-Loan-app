@@ -1,6 +1,6 @@
 {
   "name": "swastik-financial-solutions-dsa-loan-app",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Comprehensive DSA Loan Management System for Swastik Financial Solutions",
   "main": "server.js",
   "scripts": {
@@ -12,7 +12,8 @@
     "express": "^4.18.2",
     "sqlite3": "^5.1.6",
     "cors": "^2.8.5",
-    "body-parser": "^1.20.2"
+    "body-parser": "^1.20.2",
+    "nodemailer": "^6.9.7"
   },
   "engines": {
     "node": ">=18.0.0"
