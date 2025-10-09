@@ -260,6 +260,42 @@
             font-size: 18px;
         }
 
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
         /* Form Styles */
         .form-container {
             background: white;
@@ -332,26 +368,13 @@
         }
         .submit-btn { background: #28a745; }
         .cancel-btn { background: #6c757d; }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 400px;
+        .auto-calc {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #0066cc;
         }
     </style>
 </head>
@@ -374,9 +397,9 @@
             <div id="errorMsg" class="error-msg"></div>
             <div id="successMsg" class="success-msg"></div>
             <div class="info-msg">
-                <p><strong>Super Admin Login:</strong><br>
-                rathorekishor88@gmail.com<br>
-                Password: Jaipur#1992</p>
+                <p><strong>Demo Login:</strong></p>
+                <p>Email: rathorekishor88@gmail.com</p>
+                <p>Password: Jaipur#1992</p>
                 <p style="margin-top: 10px; font-size: 11px; color: #888;">
                     Password must contain: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special character (@#$!^%*)
                 </p>
@@ -559,10 +582,15 @@
                 </table>
             </div>
         </div>
+    </div>
 
-        <!-- Vehicle Case Form -->
-        <div id="vehicleForm" class="form-container">
-            <h2>Add Vehicle Case</h2>
+    <!-- Vehicle Case Modal -->
+    <div id="vehicleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Vehicle Case</h2>
+                <button class="close-btn" onclick="hideVehicleForm()">&times;</button>
+            </div>
             <form id="vehicleCaseForm">
                 <!-- Basic Information -->
                 <div class="form-section">
@@ -570,15 +598,20 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Date *</label>
-                            <input type="date" name="date" required>
+                            <input type="date" name="date" id="vehicleDate" required onchange="updateMonth('vehicle')">
                         </div>
                         <div class="form-group">
                             <label>Month *</label>
-                            <input type="text" name="month" required>
+                            <input type="text" name="month" id="vehicleMonth" required readonly>
                         </div>
                         <div class="form-group">
                             <label>Product *</label>
-                            <input type="text" name="product" required>
+                            <select name="product" required>
+                                <option value="">Select Product</option>
+                                <option value="New">New</option>
+                                <option value="Used">Used</option>
+                                <option value="Refinance">Refinance</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-row">
@@ -641,19 +674,20 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>IRR (%)</label>
-                            <input type="number" step="0.01" name="irr">
+                            <input type="number" step="0.01" name="irr" id="vehicleIrr" onchange="calculateVehicleEMI()">
                         </div>
                         <div class="form-group">
                             <label>Finance Amount *</label>
-                            <input type="number" step="0.01" name="finance_amount" required>
+                            <input type="number" step="0.01" name="finance_amount" id="vehicleFinanceAmount" required onchange="calculateVehicleEMI(); calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>Status *</label>
                             <select name="status" required>
+                                <option value="">Select Status</option>
                                 <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
+                                <option value="In Process">In Process</option>
+                                <option value="Reject">Reject</option>
                                 <option value="Disbursed">Disbursed</option>
-                                <option value="Rejected">Rejected</option>
                             </select>
                         </div>
                     </div>
@@ -664,7 +698,14 @@
                         </div>
                         <div class="form-group">
                             <label>Sourcing</label>
-                            <input type="text" name="sourcing">
+                            <select name="sourcing">
+                                <option value="">Select Sourcing</option>
+                                <option value="Self">Self</option>
+                                <option value="Dealer">Dealer</option>
+                                <option value="DSA">DSA</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Sourcing By</label>
@@ -674,11 +715,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>RC Limit Amount</label>
-                            <input type="number" step="0.01" name="rc_limit_amount">
+                            <input type="number" step="0.01" name="rc_limit_amount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>Charges</label>
-                            <input type="number" step="0.01" name="charges">
+                            <input type="number" step="0.01" name="charges" id="vehicleCharges" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>RTO Hold</label>
@@ -688,7 +729,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>BT Amount</label>
-                            <input type="number" step="0.01" name="bt_amount">
+                            <input type="number" step="0.01" name="bt_amount" id="vehicleBtAmount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>Deferral Hold Company</label>
@@ -702,29 +743,29 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Release Amount</label>
-                            <input type="number" step="0.01" name="release_amount">
+                            <input type="number" step="0.01" name="release_amount" id="vehicleReleaseAmount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>Deferral Release Amount</label>
-                            <input type="number" step="0.01" name="deferral_release_amount">
+                            <input type="number" step="0.01" name="deferral_release_amount" id="vehicleDeferralReleaseAmount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>RTO Release Amount</label>
-                            <input type="number" step="0.01" name="rto_release_amount">
+                            <input type="number" step="0.01" name="rto_release_amount" id="vehicleRtoReleaseAmount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Insurance Amount</label>
-                            <input type="number" step="0.01" name="insurance_amount">
+                            <input type="number" step="0.01" name="insurance_amount" id="vehicleInsuranceAmount" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                         <div class="form-group">
                             <label>Total Disbursal</label>
-                            <input type="number" step="0.01" name="total_disbursal">
+                            <input type="number" step="0.01" name="total_disbursal" id="vehicleTotalDisbursal" readonly>
                         </div>
                         <div class="form-group">
                             <label>Extra Fund</label>
-                            <input type="number" step="0.01" name="extra_fund">
+                            <input type="number" step="0.01" name="extra_fund" id="vehicleExtraFund" onchange="calculateVehicleTotalDisbursal()">
                         </div>
                     </div>
                     <div class="form-row">
@@ -734,7 +775,12 @@
                         </div>
                         <div class="form-group">
                             <label>Insurance Type</label>
-                            <input type="text" name="insurance_type">
+                            <select name="insurance_type">
+                                <option value="">Select Insurance Type</option>
+                                <option value="First Party">First Party</option>
+                                <option value="Third Party">Third Party</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Insurance End Date</label>
@@ -748,13 +794,14 @@
                         </div>
                         <div class="form-group">
                             <label>EMI Amount</label>
-                            <input type="number" step="0.01" name="emi_amount">
+                            <input type="number" step="0.01" name="emi_amount" id="vehicleEmiAmount" readonly>
                         </div>
                         <div class="form-group">
                             <label>Tenure (Months)</label>
-                            <input type="number" name="tenure">
+                            <input type="number" name="tenure" id="vehicleTenure" onchange="calculateVehicleEMI()">
                         </div>
                     </div>
+                    <div class="auto-calc" id="vehicleEmiCalc"></div>
                 </div>
 
                 <!-- Co-Applicants Section -->
@@ -783,14 +830,19 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit</button>
-                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideVehicleForm()">Cancel</button>
                 </div>
             </form>
         </div>
+    </div>
 
-        <!-- MSME Case Form -->
-        <div id="msmeForm" class="form-container">
-            <h2>Add MSME/HL Case</h2>
+    <!-- MSME Case Modal -->
+    <div id="msmeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add MSME/HL Case</h2>
+                <button class="close-btn" onclick="hideMSMEForm()">&times;</button>
+            </div>
             <form id="msmeCaseForm">
                 <!-- Basic Information -->
                 <div class="form-section">
@@ -798,15 +850,20 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Date *</label>
-                            <input type="date" name="date" required>
+                            <input type="date" name="date" id="msmeDate" required onchange="updateMonth('msme')">
                         </div>
                         <div class="form-group">
                             <label>Month *</label>
-                            <input type="text" name="month" required>
+                            <input type="text" name="month" id="msmeMonth" required readonly>
                         </div>
                         <div class="form-group">
                             <label>Product *</label>
-                            <input type="text" name="product" required>
+                            <select name="product" required>
+                                <option value="">Select Product</option>
+                                <option value="HL">HL</option>
+                                <option value="MSME">MSME</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-row">
@@ -856,19 +913,20 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>IRR (%)</label>
-                            <input type="number" step="0.01" name="irr">
+                            <input type="number" step="0.01" name="irr" id="msmeIrr" onchange="calculateMSMEEMI()">
                         </div>
                         <div class="form-group">
                             <label>Finance Amount *</label>
-                            <input type="number" step="0.01" name="finance_amount" required>
+                            <input type="number" step="0.01" name="finance_amount" id="msmeFinanceAmount" required onchange="calculateMSMEEMI()">
                         </div>
                         <div class="form-group">
                             <label>Status *</label>
                             <select name="status" required>
+                                <option value="">Select Status</option>
                                 <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
+                                <option value="In Process">In Process</option>
+                                <option value="Reject">Reject</option>
                                 <option value="Disbursed">Disbursed</option>
-                                <option value="Rejected">Rejected</option>
                             </select>
                         </div>
                     </div>
@@ -879,7 +937,14 @@
                         </div>
                         <div class="form-group">
                             <label>Sourcing</label>
-                            <input type="text" name="sourcing">
+                            <select name="sourcing">
+                                <option value="">Select Sourcing</option>
+                                <option value="Self">Self</option>
+                                <option value="Dealer">Dealer</option>
+                                <option value="DSA">DSA</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Sourcing By</label>
@@ -911,15 +976,16 @@
                         </div>
                         <div class="form-group">
                             <label>EMI Amount</label>
-                            <input type="number" step="0.01" name="emi_amount">
+                            <input type="number" step="0.01" name="emi_amount" id="msmeEmiAmount" readonly>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tenure (Months)</label>
-                            <input type="number" name="tenure">
+                            <input type="number" name="tenure" id="msmeTenure" onchange="calculateMSMEEMI()">
                         </div>
                     </div>
+                    <div class="auto-calc" id="msmeEmiCalc"></div>
                 </div>
 
                 <!-- Co-Applicants Section -->
@@ -948,14 +1014,19 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit</button>
-                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                    <button type="button" class="btn cancel-btn" onclick="hideMSMEForm()">Cancel</button>
                 </div>
             </form>
         </div>
+    </div>
 
-        <!-- PL Case Form -->
-        <div id="plForm" class="form-container">
-            <h2>Add Personal Loan Case</h2>
+    <!-- PL Case Modal -->
+    <div id="plModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Personal Loan Case</h2>
+                <button class="close-btn" onclick="hidePLForm()">&times;</button>
+            </div>
             <form id="plCaseForm">
                 <!-- Basic Information -->
                 <div class="form-section">
@@ -963,11 +1034,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Date *</label>
-                            <input type="date" name="date" required>
+                            <input type="date" name="date" id="plDate" required onchange="updateMonth('pl')">
                         </div>
                         <div class="form-group">
                             <label>Month *</label>
-                            <input type="text" name="month" required>
+                            <input type="text" name="month" id="plMonth" required readonly>
                         </div>
                         <div class="form-group">
                             <label>Case Book At *</label>
@@ -1004,21 +1075,22 @@
                         </div>
                         <div class="form-group">
                             <label>ROI (%)</label>
-                            <input type="number" step="0.01" name="roi">
+                            <input type="number" step="0.01" name="roi" id="plRoi" onchange="calculatePLEMI()">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Loan Amount *</label>
-                            <input type="number" step="0.01" name="loan_amount" required>
+                            <input type="number" step="0.01" name="loan_amount" id="plLoanAmount" required onchange="calculatePLEMI()">
                         </div>
                         <div class="form-group">
                             <label>Status *</label>
                             <select name="status" required>
+                                <option value="">Select Status</option>
                                 <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
+                                <option value="In Process">In Process</option>
+                                <option value="Reject">Reject</option>
                                 <option value="Disbursed">Disbursed</option>
-                                <option value="Rejected">Rejected</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1034,7 +1106,14 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Sourcing</label>
-                            <input type="text" name="sourcing">
+                            <select name="sourcing">
+                                <option value="">Select Sourcing</option>
+                                <option value="Self">Self</option>
+                                <option value="Dealer">Dealer</option>
+                                <option value="DSA">DSA</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Sourcing By</label>
@@ -1056,15 +1135,16 @@
                         </div>
                         <div class="form-group">
                             <label>Tenure (Months)</label>
-                            <input type="number" name="tenure_months">
+                            <input type="number" name="tenure_months" id="plTenure" onchange="calculatePLEMI()">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>EMI Amount</label>
-                            <input type="number" step="0.01" name="emi_amount">
+                            <input type="number" step="0.01" name="emi_amount" id="plEmiAmount" readonly>
                         </div>
                     </div>
+                    <div class="auto-calc" id="plEmiCalc"></div>
                 </div>
 
                 <!-- Co-Applicants Section -->
@@ -1093,14 +1173,19 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit</button>
-                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                    <button type="button" class="btn cancel-btn" onclick="hidePLForm()">Cancel</button>
                 </div>
             </form>
         </div>
+    </div>
 
-        <!-- Payout Form -->
-        <div id="payoutForm" class="form-container">
-            <h2>Add Payout</h2>
+    <!-- Payout Modal -->
+    <div id="payoutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Payout</h2>
+                <button class="close-btn" onclick="hidePayoutForm()">&times;</button>
+            </div>
             <form id="payoutCaseForm">
                 <div class="form-section">
                     <h3>Payout Details</h3>
@@ -1188,7 +1273,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit</button>
-                    <button type="button" class="btn cancel-btn" onclick="hideAllForms()">Cancel</button>
+                    <button type="button" class="btn cancel-btn" onclick="hidePayoutForm()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -1236,7 +1321,7 @@
         let monthlyChart = null;
         let caseBookAtChart = null;
 
-        // Login function - Updated for email
+        // Login function
         async function login() {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -1405,6 +1490,291 @@
                 }
             } catch (error) {
                 console.error('Error loading data:', error);
+            }
+        }
+
+        // Form display functions - Modal based
+        function showVehicleForm() {
+            document.getElementById('vehicleModal').style.display = 'flex';
+            resetForm('vehicleCaseForm');
+            coApplicantCounters.vehicle = 1;
+            document.getElementById('vehicleCoApplicantsContainer').innerHTML = getCoApplicantHTML('vehicle', 0);
+        }
+
+        function hideVehicleForm() {
+            document.getElementById('vehicleModal').style.display = 'none';
+        }
+
+        function showMSMEForm() {
+            document.getElementById('msmeModal').style.display = 'flex';
+            resetForm('msmeCaseForm');
+            coApplicantCounters.msme = 1;
+            document.getElementById('msmeCoApplicantsContainer').innerHTML = getCoApplicantHTML('msme', 0);
+        }
+
+        function hideMSMEForm() {
+            document.getElementById('msmeModal').style.display = 'none';
+        }
+
+        function showPLForm() {
+            document.getElementById('plModal').style.display = 'flex';
+            resetForm('plCaseForm');
+            coApplicantCounters.pl = 1;
+            document.getElementById('plCoApplicantsContainer').innerHTML = getCoApplicantHTML('pl', 0);
+        }
+
+        function hidePLForm() {
+            document.getElementById('plModal').style.display = 'none';
+        }
+
+        function showPayoutForm() {
+            document.getElementById('payoutModal').style.display = 'flex';
+            resetForm('payoutCaseForm');
+        }
+
+        function hidePayoutForm() {
+            document.getElementById('payoutModal').style.display = 'none';
+        }
+
+        function resetForm(formId) {
+            document.getElementById(formId).reset();
+        }
+
+        // Auto-calculate month from date
+        function updateMonth(type) {
+            const dateInput = document.getElementById(type + 'Date');
+            const monthInput = document.getElementById(type + 'Month');
+            
+            if (dateInput.value) {
+                const date = new Date(dateInput.value);
+                const month = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                monthInput.value = month;
+            }
+        }
+
+        // EMI Calculation functions
+        function calculateVehicleEMI() {
+            const irr = parseFloat(document.getElementById('vehicleIrr').value) || 0;
+            const financeAmount = parseFloat(document.getElementById('vehicleFinanceAmount').value) || 0;
+            const tenure = parseInt(document.getElementById('vehicleTenure').value) || 0;
+            
+            if (irr > 0 && financeAmount > 0 && tenure > 0) {
+                const monthlyRate = irr / 12 / 100;
+                const emi = financeAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure) / (Math.pow(1 + monthlyRate, tenure) - 1);
+                document.getElementById('vehicleEmiAmount').value = emi.toFixed(2);
+                document.getElementById('vehicleEmiCalc').textContent = `EMI Calculated: ₹${emi.toFixed(2)} per month for ${tenure} months`;
+            } else {
+                document.getElementById('vehicleEmiAmount').value = '';
+                document.getElementById('vehicleEmiCalc').textContent = '';
+            }
+        }
+
+        function calculateMSMEEMI() {
+            const irr = parseFloat(document.getElementById('msmeIrr').value) || 0;
+            const financeAmount = parseFloat(document.getElementById('msmeFinanceAmount').value) || 0;
+            const tenure = parseInt(document.getElementById('msmeTenure').value) || 0;
+            
+            if (irr > 0 && financeAmount > 0 && tenure > 0) {
+                const monthlyRate = irr / 12 / 100;
+                const emi = financeAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure) / (Math.pow(1 + monthlyRate, tenure) - 1);
+                document.getElementById('msmeEmiAmount').value = emi.toFixed(2);
+                document.getElementById('msmeEmiCalc').textContent = `EMI Calculated: ₹${emi.toFixed(2)} per month for ${tenure} months`;
+            } else {
+                document.getElementById('msmeEmiAmount').value = '';
+                document.getElementById('msmeEmiCalc').textContent = '';
+            }
+        }
+
+        function calculatePLEMI() {
+            const roi = parseFloat(document.getElementById('plRoi').value) || 0;
+            const loanAmount = parseFloat(document.getElementById('plLoanAmount').value) || 0;
+            const tenure = parseInt(document.getElementById('plTenure').value) || 0;
+            
+            if (roi > 0 && loanAmount > 0 && tenure > 0) {
+                const monthlyRate = roi / 12 / 100;
+                const emi = loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure) / (Math.pow(1 + monthlyRate, tenure) - 1);
+                document.getElementById('plEmiAmount').value = emi.toFixed(2);
+                document.getElementById('plEmiCalc').textContent = `EMI Calculated: ₹${emi.toFixed(2)} per month for ${tenure} months`;
+            } else {
+                document.getElementById('plEmiAmount').value = '';
+                document.getElementById('plEmiCalc').textContent = '';
+            }
+        }
+
+        // Calculate total disbursal for vehicle
+        function calculateVehicleTotalDisbursal() {
+            const charges = parseFloat(document.getElementById('vehicleCharges').value) || 0;
+            const btAmount = parseFloat(document.getElementById('vehicleBtAmount').value) || 0;
+            const releaseAmount = parseFloat(document.getElementById('vehicleReleaseAmount').value) || 0;
+            const deferralReleaseAmount = parseFloat(document.getElementById('vehicleDeferralReleaseAmount').value) || 0;
+            const rtoReleaseAmount = parseFloat(document.getElementById('vehicleRtoReleaseAmount').value) || 0;
+            const insuranceAmount = parseFloat(document.getElementById('vehicleInsuranceAmount').value) || 0;
+            const extraFund = parseFloat(document.getElementById('vehicleExtraFund').value) || 0;
+            
+            const totalDisbursal = charges + btAmount + releaseAmount + deferralReleaseAmount + rtoReleaseAmount + insuranceAmount + extraFund;
+            document.getElementById('vehicleTotalDisbursal').value = totalDisbursal.toFixed(2);
+        }
+
+        // Co-applicant management
+        function getCoApplicantHTML(type, index) {
+            return `
+                <div class="co-applicant-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Co-Applicant ${index + 1} Name</label>
+                            <input type="text" name="co_applicants[${index}][name]">
+                        </div>
+                        <div class="form-group">
+                            <label>Co-Applicant ${index + 1} Address</label>
+                            <textarea name="co_applicants[${index}][address]"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Co-Applicant ${index + 1} Contact</label>
+                            <input type="text" name="co_applicants[${index}][contact]">
+                        </div>
+                    </div>
+                    ${index > 0 ? '<button type="button" class="remove-co-applicant" onclick="this.parentElement.remove()">Remove</button>' : ''}
+                </div>
+            `;
+        }
+
+        function addCoApplicant(type) {
+            if (coApplicantCounters[type] >= 5) {
+                alert('Maximum 5 co-applicants allowed');
+                return;
+            }
+
+            const container = document.getElementById(type + 'CoApplicantsContainer');
+            const newSection = document.createElement('div');
+            newSection.innerHTML = getCoApplicantHTML(type, coApplicantCounters[type]);
+            container.appendChild(newSection);
+            coApplicantCounters[type]++;
+        }
+
+        // Form submission handlers
+        document.getElementById('vehicleCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('vehicle', this);
+        });
+
+        document.getElementById('msmeCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('msme', this);
+        });
+
+        document.getElementById('plCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('pl', this);
+        });
+
+        document.getElementById('payoutCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await submitForm('payout', this);
+        });
+
+        async function submitForm(type, form) {
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Process co-applicants for loan types
+            if (type !== 'payout') {
+                const coApplicants = [];
+                const coApplicantElements = form.querySelectorAll('[name^="co_applicants"]');
+                
+                // Group co-applicant data
+                const coApplicantData = {};
+                coApplicantElements.forEach(element => {
+                    const match = element.name.match(/co_applicants\[(\d+)\]\[(\w+)\]/);
+                    if (match) {
+                        const index = match[1];
+                        const field = match[2];
+                        const value = element.value.trim();
+                        
+                        if (!coApplicantData[index]) {
+                            coApplicantData[index] = {};
+                        }
+                        coApplicantData[index][field] = value;
+                    }
+                });
+
+                // Add non-empty co-applicants
+                Object.values(coApplicantData).forEach(applicant => {
+                    if (applicant.name && applicant.address && applicant.contact) {
+                        coApplicants.push(applicant);
+                    }
+                });
+                data.co_applicants = coApplicants;
+            }
+
+            try {
+                const endpoint = type === 'payout' ? '/api/payouts' : `/api/${type}-cases`;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} case saved successfully!`);
+                    // Hide the modal
+                    if (type === 'vehicle') hideVehicleForm();
+                    else if (type === 'msme') hideMSMEForm();
+                    else if (type === 'pl') hidePLForm();
+                    else if (type === 'payout') hidePayoutForm();
+                    
+                    loadData(); // Refresh data to show latest entries
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        }
+
+        // Tab navigation
+        function showTab(tabName) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Section').classList.add('active');
+            event.target.classList.add('active');
+            document.getElementById('analyticsSection').style.display = 'none';
+        }
+
+        // Edit case function
+        async function editCase(type, id) {
+            const caseData = cases[type].find(item => item.id === id);
+            if (!caseData) {
+                alert('Case not found');
+                return;
+            }
+
+            // For now, just show an alert. You can implement full edit functionality later
+            alert(`Edit functionality for ${type} case ID: ${id} will be implemented in the next version.`);
+        }
+
+        // Delete case
+        async function deleteCase(type, id) {
+            if (!confirm('Are you sure you want to delete this record?')) return;
+            
+            try {
+                const response = await fetch(`/api/${type}-cases/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Record deleted successfully!');
+                    loadData();
+                } else {
+                    alert('Error deleting record: ' + data.message);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
             }
         }
 
@@ -1588,160 +1958,6 @@
             });
         }
 
-        // Form display functions
-        function showVehicleForm() {
-            hideAllForms();
-            document.getElementById('vehicleForm').style.display = 'block';
-        }
-
-        function showMSMEForm() {
-            hideAllForms();
-            document.getElementById('msmeForm').style.display = 'block';
-        }
-
-        function showPLForm() {
-            hideAllForms();
-            document.getElementById('plForm').style.display = 'block';
-        }
-
-        function showPayoutForm() {
-            hideAllForms();
-            document.getElementById('payoutForm').style.display = 'block';
-        }
-
-        function hideAllForms() {
-            document.querySelectorAll('.form-container').forEach(form => {
-                form.style.display = 'none';
-            });
-        }
-
-        // Co-applicant management
-        function addCoApplicant(type) {
-            if (coApplicantCounters[type] >= 5) {
-                alert('Maximum 5 co-applicants allowed');
-                return;
-            }
-
-            coApplicantCounters[type]++;
-            const container = document.getElementById(type + 'CoApplicantsContainer');
-            const newSection = document.createElement('div');
-            newSection.className = 'co-applicant-section';
-            newSection.innerHTML = `
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Co-Applicant ${coApplicantCounters[type]} Name</label>
-                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][name]">
-                    </div>
-                    <div class="form-group">
-                        <label>Co-Applicant ${coApplicantCounters[type]} Address</label>
-                        <textarea name="co_applicants[${coApplicantCounters[type]-1}][address]"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Co-Applicant ${coApplicantCounters[type]} Contact</label>
-                        <input type="text" name="co_applicants[${coApplicantCounters[type]-1}][contact]">
-                    </div>
-                </div>
-                <button type="button" class="remove-co-applicant" onclick="this.parentElement.remove()">Remove</button>
-            `;
-            container.appendChild(newSection);
-        }
-
-        // Form submission handlers
-        document.getElementById('vehicleCaseForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await submitForm('vehicle', this);
-        });
-
-        document.getElementById('msmeCaseForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await submitForm('msme', this);
-        });
-
-        document.getElementById('plCaseForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await submitForm('pl', this);
-        });
-
-        document.getElementById('payoutCaseForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await submitForm('payout', this);
-        });
-
-        async function submitForm(type, form) {
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Process co-applicants for loan types
-            if (type !== 'payout') {
-                const coApplicants = [];
-                for (let i = 0; i < coApplicantCounters[type]; i++) {
-                    const name = data[`co_applicants[${i}][name]`];
-                    const address = data[`co_applicants[${i}][address]`];
-                    const contact = data[`co_applicants[${i}][contact]`];
-                    
-                    if (name && address && contact) {
-                        coApplicants.push({ name, address, contact });
-                    }
-                }
-                data.co_applicants = coApplicants;
-            }
-
-            try {
-                const endpoint = type === 'payout' ? '/api/payouts' : `/api/${type}-cases`;
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} case saved successfully!`);
-                    hideAllForms();
-                    loadData(); // Refresh data to show latest entries
-                } else {
-                    alert('Error: ' + result.message);
-                }
-            } catch (error) {
-                alert('Network error: ' + error.message);
-            }
-        }
-
-        // Tab navigation
-        function showTab(tabName) {
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.getElementById(tabName + 'Section').classList.add('active');
-            event.target.classList.add('active');
-            hideAllForms();
-            document.getElementById('analyticsSection').style.display = 'none';
-        }
-
-        // Delete case
-        async function deleteCase(type, id) {
-            if (!confirm('Are you sure you want to delete this record?')) return;
-            
-            try {
-                const response = await fetch(`/api/${type}-cases/${id}`, {
-                    method: 'DELETE'
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('Record deleted successfully!');
-                    loadData();
-                } else {
-                    alert('Error deleting record: ' + data.message);
-                }
-            } catch (error) {
-                alert('Network error: ' + error.message);
-            }
-        }
-
         // Admin panel functions
         function showAdminPanel() {
             document.getElementById('adminModal').style.display = 'flex';
@@ -1806,7 +2022,6 @@
                 document.getElementById('password').value = '';
                 document.getElementById('errorMsg').textContent = '';
                 document.getElementById('successMsg').textContent = '';
-                hideAllForms();
             }
         }
 
