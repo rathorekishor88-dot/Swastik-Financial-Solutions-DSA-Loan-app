@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     setupFormCalculations();
     setupAutoMonth();
+    setupEMICalculations();
 });
 
 // Authentication functions
@@ -100,12 +101,41 @@ function setupAutoMonth() {
     });
 }
 
+function setupEMICalculations() {
+    // Auto-calculate EMI when loan amount, interest rate, or tenure changes
+    document.addEventListener('input', function(e) {
+        const target = e.target;
+        
+        // Vehicle EMI calculation
+        if (target.name === 'finance_amount' || target.name === 'irr' || target.name === 'tenure') {
+            if (target.closest('#vehicleForm')) {
+                calculateVehicleEMI();
+            }
+        }
+        
+        // MSME EMI calculation
+        if (target.name === 'finance_amount' || target.name === 'irr' || target.name === 'tenure') {
+            if (target.closest('#msmeForm')) {
+                calculateMsmeEMI();
+            }
+        }
+        
+        // PL EMI calculation
+        if (target.name === 'loan_amount' || target.name === 'roi' || target.name === 'tenure_months') {
+            if (target.closest('#plForm')) {
+                calculatePLEMI();
+            }
+        }
+    });
+}
+
 function calculateVehicleTotals() {
     const financeAmount = parseFloat(document.getElementById('vehicleFinanceAmount').value) || 0;
     const charges = parseFloat(document.getElementById('vehicleCharges').value) || 0;
     const btAmount = parseFloat(document.getElementById('vehicleBtAmount').value) || 0;
     const extraFund = parseFloat(document.getElementById('vehicleExtraFund').value) || 0;
     
+    // Total Disbursal = Finance Amount + Charges + BT Amount + Extra Fund
     const totalDisbursal = financeAmount + charges + btAmount + extraFund;
     document.getElementById('vehicleTotalDisbursal').value = totalDisbursal.toFixed(2);
 }
@@ -131,6 +161,42 @@ function calculatePlTotals() {
     
     const netAmount = loanAmount - totalCharges;
     document.getElementById('plNetAmount').value = netAmount.toFixed(2);
+}
+
+function calculateVehicleEMI() {
+    const principal = parseFloat(document.getElementById('vehicleFinanceAmount').value) || 0;
+    const annualRate = parseFloat(document.getElementById('vehicleIrr').value) || 0;
+    const tenureMonths = parseFloat(document.getElementById('vehicleTenure').value) || 0;
+    
+    if (principal > 0 && annualRate > 0 && tenureMonths > 0) {
+        const monthlyRate = annualRate / 12 / 100;
+        const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        document.getElementById('vehicleEmiAmount').value = emi.toFixed(2);
+    }
+}
+
+function calculateMsmeEMI() {
+    const principal = parseFloat(document.getElementById('msmeFinanceAmount').value) || 0;
+    const annualRate = parseFloat(document.getElementById('msmeIrr').value) || 0;
+    const tenureMonths = parseFloat(document.getElementById('msmeTenure').value) || 0;
+    
+    if (principal > 0 && annualRate > 0 && tenureMonths > 0) {
+        const monthlyRate = annualRate / 12 / 100;
+        const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        document.getElementById('msmeEmiAmount').value = emi.toFixed(2);
+    }
+}
+
+function calculatePLEMI() {
+    const principal = parseFloat(document.getElementById('plLoanAmount').value) || 0;
+    const annualRate = parseFloat(document.getElementById('plRoi').value) || 0;
+    const tenureMonths = parseFloat(document.getElementById('plTenureMonths').value) || 0;
+    
+    if (principal > 0 && annualRate > 0 && tenureMonths > 0) {
+        const monthlyRate = annualRate / 12 / 100;
+        const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        document.getElementById('plEmiAmount').value = emi.toFixed(2);
+    }
 }
 
 // Authentication handlers
@@ -235,7 +301,7 @@ async function handleResetPassword(e) {
     }
 }
 
-// Navigation functions
+// Navigation functions - FIXED: Remove event.target reference
 function showSection(sectionId) {
     // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
@@ -249,7 +315,13 @@ function showSection(sectionId) {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    
+    // Find and activate the correct nav button
+    const activeBtn = document.querySelector(`[onclick*="${sectionId}"]`) || 
+                     document.querySelector(`#${sectionId.replace('Section', 'Btn')}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
     
     // Load section-specific data
     switch(sectionId) {
@@ -322,18 +394,22 @@ async function handleVehicleSubmit(e) {
         if (data[field]) data[field] = parseFloat(data[field]);
     });
 
-    // Handle co-applicants
+    // Handle co-applicants - FIXED: Include contact and address
     data.co_applicants = [];
     let index = 0;
     while (data[`co_applicant_name_${index}`]) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact: data[`co_applicant_contact_${index}`] || '',
+                address: data[`co_applicant_address_${index}`] || ''
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -377,18 +453,22 @@ async function handleMsmeSubmit(e) {
         if (data[field]) data[field] = parseFloat(data[field]);
     });
 
-    // Handle co-applicants
+    // Handle co-applicants - FIXED: Include contact and address
     data.co_applicants = [];
     let index = 0;
     while (data[`co_applicant_name_${index}`]) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact: data[`co_applicant_contact_${index}`] || '',
+                address: data[`co_applicant_address_${index}`] || ''
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -432,18 +512,22 @@ async function handlePlSubmit(e) {
         if (data[field]) data[field] = parseFloat(data[field]);
     });
 
-    // Handle co-applicants
+    // Handle co-applicants - FIXED: Include contact and address
     data.co_applicants = [];
     let index = 0;
     while (data[`co_applicant_name_${index}`]) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact: data[`co_applicant_contact_${index}`] || '',
+                address: data[`co_applicant_address_${index}`] || ''
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -556,13 +640,13 @@ async function editVehicleCase(id) {
                 }
             });
             
-            // Handle co-applicants
+            // Handle co-applicants - FIXED: Include contact and address
             const coApplicantsContainer = document.getElementById('vehicleCoApplicants');
             coApplicantsContainer.innerHTML = '';
             
             if (data.co_applicants && data.co_applicants.length > 0) {
                 data.co_applicants.forEach((applicant, index) => {
-                    addCoApplicantField('vehicle', index, applicant.name, applicant.relationship);
+                    addCoApplicantField('vehicle', index, applicant.name, applicant.relationship, applicant.contact, applicant.address);
                 });
             }
             
@@ -596,13 +680,13 @@ async function editMsmeCase(id) {
                 }
             });
             
-            // Handle co-applicants
+            // Handle co-applicants - FIXED: Include contact and address
             const coApplicantsContainer = document.getElementById('msmeCoApplicants');
             coApplicantsContainer.innerHTML = '';
             
             if (data.co_applicants && data.co_applicants.length > 0) {
                 data.co_applicants.forEach((applicant, index) => {
-                    addCoApplicantField('msme', index, applicant.name, applicant.relationship);
+                    addCoApplicantField('msme', index, applicant.name, applicant.relationship, applicant.contact, applicant.address);
                 });
             }
             
@@ -636,13 +720,13 @@ async function editPlCase(id) {
                 }
             });
             
-            // Handle co-applicants
+            // Handle co-applicants - FIXED: Include contact and address
             const coApplicantsContainer = document.getElementById('plCoApplicants');
             coApplicantsContainer.innerHTML = '';
             
             if (data.co_applicants && data.co_applicants.length > 0) {
                 data.co_applicants.forEach((applicant, index) => {
-                    addCoApplicantField('pl', index, applicant.name, applicant.relationship);
+                    addCoApplicantField('pl', index, applicant.name, applicant.relationship, applicant.contact, applicant.address);
                 });
             }
             
@@ -660,8 +744,8 @@ async function editPlCase(id) {
     }
 }
 
-// Co-applicant functions
-function addCoApplicantField(formType, index, name = '', relationship = '') {
+// Co-applicant functions - FIXED: Add contact and address fields
+function addCoApplicantField(formType, index, name = '', relationship = '', contact = '', address = '') {
     const container = document.getElementById(`${formType}CoApplicants`);
     const div = document.createElement('div');
     div.className = 'co-applicant-field';
@@ -674,6 +758,16 @@ function addCoApplicantField(formType, index, name = '', relationship = '') {
             <div class="form-group">
                 <label>Relationship</label>
                 <input type="text" name="co_applicant_relationship_${index}" value="${relationship}" required>
+            </div>
+            <div class="form-group">
+                <label>Contact No</label>
+                <input type="tel" name="co_applicant_contact_${index}" value="${contact}" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full-width">
+                <label>Address</label>
+                <textarea name="co_applicant_address_${index}" rows="2" required>${address}</textarea>
             </div>
             <button type="button" class="btn-danger" onclick="removeCoApplicantField(this)">Remove</button>
         </div>
