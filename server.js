@@ -34,13 +34,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const emailTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
 let currentUser = null;
-let otpStorage = {};
+let otpStorage = {}; // In production, use Redis or database
 
 function initializeDatabase() {
     // Create enhanced users table with email
@@ -54,13 +54,12 @@ function initializeDatabase() {
     )`, () => {
         console.log('✅ Users table ready');
         
-        // Insert only super admin user
+        // Insert only super admin user if not exists
         const superAdmin = ['rathorekishor88@gmail.com', 'rathorekishor88@gmail.com', 'Jaipur#1992', 'super_admin'];
-        
         db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
             superAdmin, (err) => {
-            if (err) console.log('Error creating super admin:', err);
-            else console.log('✅ Super Admin created: rathorekishor88@gmail.com');
+            if (err) console.log('Error creating super admin:', err.message);
+            else console.log('✅ Super Admin ensured: rathorekishor88@gmail.com');
         });
     });
 
@@ -84,7 +83,6 @@ function initializeDatabase() {
         status TEXT,
         disbursement_date TEXT,
         sourcing TEXT,
-        sourcing_by TEXT,
         rc_limit_amount REAL,
         charges REAL,
         rto_hold TEXT,
@@ -125,7 +123,6 @@ function initializeDatabase() {
         status TEXT,
         disbursement_date TEXT,
         sourcing TEXT,
-        sourcing_by TEXT,
         charges REAL,
         bt_amount REAL,
         net_amount REAL,
@@ -152,8 +149,7 @@ function initializeDatabase() {
         loan_amount REAL,
         status TEXT,
         disbursed_date TEXT,
-        sourcing TEXT,
-        sourcing_by TEXT,
+        sourcing_from TEXT,
         total_charges REAL,
         bt_amount REAL,
         extra_fund REAL,
@@ -166,22 +162,29 @@ function initializeDatabase() {
     // Enhanced Payouts table
     db.run(`CREATE TABLE IF NOT EXISTS payouts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        payout_date TEXT,
-        disbursement_date TEXT,
+        date TEXT,
+        month TEXT,
         product TEXT,
         case_book_at TEXT,
         customer_name TEXT,
+        address TEXT,
+        applicant_occupation TEXT,
+        loan_end_used TEXT,
         mobile TEXT,
-        finance_amount REAL,
+        property_type TEXT,
         irr REAL,
+        finance_amount REAL,
+        status TEXT,
+        disbursement_date TEXT,
+        sourcing TEXT,
+        charges REAL,
+        bt_amount REAL,
+        net_amount REAL,
+        extra_fund REAL,
+        total_loan_amount REAL,
+        emi_amount REAL,
+        tenure INTEGER,
         payout_status TEXT,
-        payout_percent REAL,
-        payout_amount REAL,
-        gst REAL,
-        tds REAL,
-        net_amount_received REAL,
-        payout_given_to_referrals TEXT,
-        net_payout REAL,
         case_type TEXT,
         case_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -205,47 +208,13 @@ function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Helper function to add to payouts
-function addToPayouts(data, caseType, caseId) {
-    const payoutPercent = 0.5;
-    const payoutAmount = (data.finance_amount || data.loan_amount || 0) * (payoutPercent / 100);
-    const gst = payoutAmount * 0.18;
-    const tds = payoutAmount * 0.05;
-    const netAmountReceived = payoutAmount - gst - tds;
-    
-    db.run(`INSERT INTO payouts (
-        payout_date, disbursement_date, product, case_book_at, customer_name, mobile,
-        finance_amount, irr, payout_status, payout_percent, payout_amount, gst, tds,
-        net_amount_received, payout_given_to_referrals, net_payout, case_type, case_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-        new Date().toISOString().split('T')[0],
-        data.disbursement_date || data.disbursed_date,
-        caseType,
-        data.case_book_at,
-        data.customer_name,
-        data.mobile || data.contact_no,
-        data.finance_amount || data.loan_amount,
-        data.irr || data.roi,
-        'Pending',
-        payoutPercent,
-        payoutAmount,
-        gst,
-        tds,
-        netAmountReceived,
-        data.sourcing_by,
-        netAmountReceived,
-        caseType,
-        caseId
-    ]);
-}
-
-// Login API
+// Login API - Updated for email login
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
-    
     db.get(`SELECT * FROM users WHERE email = ? AND password = ?`, 
     [email, password], (err, row) => {
         if (err) {
+            console.log('Database error:', err.message);
             res.json({ success: false, message: 'Database error' });
         } else if (row) {
             currentUser = row;
@@ -266,11 +235,9 @@ app.post('/api/login', (req, res) => {
 // Forgot Password - Send OTP
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
-    
     if (!validateEmail(email)) {
         return res.json({ success: false, message: 'Invalid email format' });
     }
-    
     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
         if (err) {
             res.json({ success: false, message: 'Database error' });
@@ -278,9 +245,8 @@ app.post('/api/forgot-password', async (req, res) => {
             const otp = generateOTP();
             otpStorage[email] = {
                 otp: otp,
-                expires: Date.now() + 10 * 60 * 1000
+                expires: Date.now() + 10 * 60 * 1000 // 10 minutes
             };
-            
             try {
                 await emailTransporter.sendMail({
                     from: process.env.EMAIL_USER,
@@ -290,10 +256,12 @@ app.post('/api/forgot-password', async (req, res) => {
                         <h2>Password Reset Request</h2>
                         <p>Your OTP for password reset is: <strong>${otp}</strong></p>
                         <p>This OTP will expire in 10 minutes.</p>
+                        <p>If you didn't request this, please ignore this email.</p>
                     `
                 });
                 res.json({ success: true, message: 'OTP sent to your email' });
             } catch (error) {
+                console.error('Email error:', error.message);
                 res.json({ success: false, message: 'Failed to send OTP' });
             }
         } else {
@@ -305,24 +273,19 @@ app.post('/api/forgot-password', async (req, res) => {
 // Verify OTP and Reset Password
 app.post('/api/reset-password', (req, res) => {
     const { email, otp, newPassword } = req.body;
-    
     if (!validatePassword(newPassword)) {
         return res.json({ 
             success: false, 
             message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
         });
     }
-    
     const otpData = otpStorage[email];
-    
     if (!otpData || otpData.expires < Date.now()) {
         return res.json({ success: false, message: 'OTP expired or invalid' });
     }
-    
     if (otpData.otp !== otp) {
         return res.json({ success: false, message: 'Invalid OTP' });
     }
-    
     db.run(`UPDATE users SET password = ? WHERE email = ?`, [newPassword, email], function(err) {
         if (err) {
             res.json({ success: false, message: 'Database error' });
@@ -335,25 +298,21 @@ app.post('/api/reset-password', (req, res) => {
     });
 });
 
-// Create User API
+// Create User API with validation
 app.post('/api/create-user', (req, res) => {
     const { username, email, password, role } = req.body;
-    
     if (!currentUser || currentUser.role !== 'super_admin') {
         return res.json({ success: false, message: 'Unauthorized' });
     }
-    
     if (!validateEmail(email)) {
         return res.json({ success: false, message: 'Invalid email format' });
     }
-    
     if (!validatePassword(password)) {
         return res.json({ 
             success: false, 
             message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
         });
     }
-    
     db.run(`INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
     [username, email, password, role], function(err) {
         if (err) {
@@ -390,272 +349,16 @@ app.get('/api/all-data', (req, res) => {
     });
 });
 
-// Enhanced Vehicle Cases API
-app.post('/api/vehicle-cases', (req, res) => {
-    const data = req.body;
-    
-    const query = `INSERT INTO vehicle_cases (
-        date, month, product, case_book_at, customer_name, address, applicant_occupation, 
-        vehicle_end_used, mobile, vehicle_no, model_year, vehicle_model, irr, finance_amount, 
-        status, disbursement_date, sourcing, sourcing_by, rc_limit_amount, charges, rto_hold, bt_amount, 
-        deferral_hold_company, deferral_hold_our_side, release_amount, deferral_release_amount, 
-        rto_release_amount, insurance_amount, total_disbursal, extra_fund, rto_released_name, 
-        insurance_type, insurance_end_date, pdd_rc, emi_amount, tenure, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
-        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
-        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
-        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
-        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
-        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
-        data.tenure, JSON.stringify(data.co_applicants || [])
-    ];
-    
-    db.run(query, values, function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            if (data.status === 'Disbursed') {
-                addToPayouts(data, 'Vehicle', this.lastID);
-            }
-            res.json({ success: true, message: 'Vehicle case saved successfully', id: this.lastID });
-        }
-    });
-});
-
-// Update Vehicle Case API
-app.put('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    const data = req.body;
-    
-    const query = `UPDATE vehicle_cases SET 
-        date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?, 
-        vehicle_end_used = ?, mobile = ?, vehicle_no = ?, model_year = ?, vehicle_model = ?, irr = ?, finance_amount = ?, 
-        status = ?, disbursement_date = ?, sourcing = ?, sourcing_by = ?, rc_limit_amount = ?, charges = ?, rto_hold = ?, bt_amount = ?, 
-        deferral_hold_company = ?, deferral_hold_our_side = ?, release_amount = ?, deferral_release_amount = ?, 
-        rto_release_amount = ?, insurance_amount = ?, total_disbursal = ?, extra_fund = ?, rto_released_name = ?, 
-        insurance_type = ?, insurance_end_date = ?, pdd_rc = ?, emi_amount = ?, tenure = ?, co_applicants = ?
-        WHERE id = ?`;
-    
-    db.run(query, [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
-        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
-        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
-        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
-        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
-        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
-        data.tenure, JSON.stringify(data.co_applicants || []), id
-    ], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'Vehicle case updated successfully' });
-        }
-    });
-});
-
-// Get Vehicle Case by ID
-app.get('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.get('SELECT * FROM vehicle_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else if (row) {
-            row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-            res.json({ success: true, data: row });
-        } else {
-            res.json({ success: false, message: 'Case not found' });
-        }
-    });
-});
-
-// Enhanced MSME Cases API
-app.post('/api/msme-cases', (req, res) => {
-    const data = req.body;
-    
-    const query = `INSERT INTO msme_cases (
-        date, month, product, case_book_at, customer_name, address, applicant_occupation,
-        loan_end_used, mobile, property_type, irr, finance_amount, status, disbursement_date,
-        sourcing, sourcing_by, charges, bt_amount, net_amount, extra_fund, total_loan_amount, emi_amount,
-        tenure, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
-        data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
-        data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
-        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || [])
-    ];
-    
-    db.run(query, values, function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            if (data.status === 'Disbursed') {
-                addToPayouts(data, 'MSME', this.lastID);
-            }
-            res.json({ success: true, message: 'MSME case saved successfully', id: this.lastID });
-        }
-    });
-});
-
-// Update MSME Case API
-app.put('/api/msme-cases/:id', (req, res) => {
-    const id = req.params.id;
-    const data = req.body;
-    
-    const query = `UPDATE msme_cases SET 
-        date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
-        loan_end_used = ?, mobile = ?, property_type = ?, irr = ?, finance_amount = ?, status = ?, disbursement_date = ?,
-        sourcing = ?, sourcing_by = ?, charges = ?, bt_amount = ?, net_amount = ?, extra_fund = ?, total_loan_amount = ?, emi_amount = ?,
-        tenure = ?, co_applicants = ?
-        WHERE id = ?`;
-    
-    db.run(query, [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
-        data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
-        data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
-        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || []), id
-    ], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'MSME case updated successfully' });
-        }
-    });
-});
-
-// Get MSME Case by ID
-app.get('/api/msme-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.get('SELECT * FROM msme_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else if (row) {
-            row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-            res.json({ success: true, data: row });
-        } else {
-            res.json({ success: false, message: 'Case not found' });
-        }
-    });
-});
-
-// Enhanced PL Cases API
-app.post('/api/pl-cases', (req, res) => {
-    const data = req.body;
-    
-    const query = `INSERT INTO pl_cases (
-        date, month, case_book_at, customer_name, address, applicant_occupation,
-        loan_end_used, contact_no, roi, loan_amount, status, disbursed_date,
-        sourcing, sourcing_by, total_charges, bt_amount, extra_fund, tenure_months, emi_amount,
-        co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-        data.date, data.month, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
-        data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
-        data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
-        data.emi_amount, JSON.stringify(data.co_applicants || [])
-    ];
-    
-    db.run(query, values, function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            if (data.status === 'Disbursed') {
-                addToPayouts(data, 'Personal Loan', this.lastID);
-            }
-            res.json({ success: true, message: 'PL case saved successfully', id: this.lastID });
-        }
-    });
-});
-
-// Update PL Case API
-app.put('/api/pl-cases/:id', (req, res) => {
-    const id = req.params.id;
-    const data = req.body;
-    
-    const query = `UPDATE pl_cases SET 
-        date = ?, month = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
-        loan_end_used = ?, contact_no = ?, roi = ?, loan_amount = ?, status = ?, disbursed_date = ?,
-        sourcing = ?, sourcing_by = ?, total_charges = ?, bt_amount = ?, extra_fund = ?, tenure_months = ?, emi_amount = ?,
-        co_applicants = ?
-        WHERE id = ?`;
-    
-    db.run(query, [
-        data.date, data.month, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
-        data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
-        data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
-        data.emi_amount, JSON.stringify(data.co_applicants || []), id
-    ], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'PL case updated successfully' });
-        }
-    });
-});
-
-// Get PL Case by ID
-app.get('/api/pl-cases/:id', (req, res) => {
-    const id = req.params.id;
-    db.get('SELECT * FROM pl_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else if (row) {
-            row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-            res.json({ success: true, data: row });
-        } else {
-            res.json({ success: false, message: 'Case not found' });
-        }
-    });
-});
-
-// Payouts API
-app.post('/api/payouts', (req, res) => {
-    const data = req.body;
-    
-    const query = `INSERT INTO payouts (
-        payout_date, disbursement_date, product, case_book_at, customer_name, mobile, 
-        finance_amount, irr, payout_status, payout_percent, payout_amount, gst, tds, 
-        net_amount_received, payout_given_to_referrals, net_payout
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-        data.payout_date, data.disbursement_date, data.product, data.case_book_at, 
-        data.customer_name, data.mobile, data.finance_amount, data.irr, data.payout_status,
-        data.payout_percent, data.payout_amount, data.gst, data.tds, data.net_amount_received,
-        data.payout_given_to_referrals, data.net_payout
-    ];
-    
-    db.run(query, values, function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'Payout saved successfully', id: this.lastID });
-        }
-    });
-});
-
 // Get business analytics data
 app.get('/api/analytics', (req, res) => {
     const fiveMonthsAgo = new Date();
     fiveMonthsAgo.setMonth(fiveMonthsAgo.getMonth() - 5);
-    
     const query = `
         SELECT 
             strftime('%Y-%m', created_at) as month,
             COUNT(*) as total_cases,
             SUM(finance_amount) as total_amount,
-            CASE_BOOK_AT,
+            case_book_at,
             COUNT(CASE WHEN status = 'Disbursed' THEN 1 END) as disbursed_cases
         FROM (
             SELECT created_at, finance_amount, case_book_at, status FROM vehicle_cases
@@ -668,14 +371,12 @@ app.get('/api/analytics', (req, res) => {
         GROUP BY strftime('%Y-%m', created_at), case_book_at
         ORDER BY month DESC, total_cases DESC
     `;
-    
     db.all(query, [fiveMonthsAgo.toISOString()], (err, rows) => {
         if (err) {
             res.json({ success: false, message: err.message });
         } else {
             const monthlyData = {};
             const caseBookAtData = {};
-            
             rows.forEach(row => {
                 if (!monthlyData[row.month]) {
                     monthlyData[row.month] = {
@@ -688,13 +389,11 @@ app.get('/api/analytics', (req, res) => {
                 monthlyData[row.month].total_cases += row.total_cases;
                 monthlyData[row.month].total_amount += row.total_amount;
                 monthlyData[row.month].disbursed_cases += row.disbursed_cases;
-                
                 if (!caseBookAtData[row.case_book_at]) {
                     caseBookAtData[row.case_book_at] = 0;
                 }
                 caseBookAtData[row.case_book_at] += row.total_cases;
             });
-            
             res.json({
                 success: true,
                 data: {
@@ -708,37 +407,110 @@ app.get('/api/analytics', (req, res) => {
     });
 });
 
+// Enhanced Vehicle Cases API
+app.post('/api/vehicle-cases', (req, res) => {
+    const data = req.body;
+    const query = `INSERT INTO vehicle_cases (
+        date, month, product, case_book_at, customer_name, address, applicant_occupation, 
+        vehicle_end_used, mobile, vehicle_no, model_year, vehicle_model, irr, finance_amount, 
+        status, disbursement_date, sourcing, rc_limit_amount, charges, rto_hold, bt_amount, 
+        deferral_hold_company, deferral_hold_our_side, release_amount, deferral_release_amount, 
+        rto_release_amount, insurance_amount, total_disbursal, extra_fund, rto_released_name, 
+        insurance_type, insurance_end_date, pdd_rc, emi_amount, tenure, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    db.run(query, [
+        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
+        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
+        data.sourcing, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
+        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
+        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
+        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
+        data.tenure, JSON.stringify(data.co_applicants || [])
+    ], function(err) {
+        if (!err && data.status === 'Disbursed') {
+            addToPayouts(data, 'Vehicle', this.lastID);
+        }
+        res.json({ success: !err, message: err ? err.message : 'Vehicle case saved', id: this.lastID });
+    });
+});
+
 // Export data API
 app.get('/api/export/:type', (req, res) => {
     const { type } = req.params;
     let tableName = '';
-
     switch(type) {
-        case 'vehicle':
-            tableName = 'vehicle_cases';
-            break;
-        case 'msme':
-            tableName = 'msme_cases';
-            break;
-        case 'pl':
-            tableName = 'pl_cases';
-            break;
-        case 'payout':
-            tableName = 'payouts';
-            break;
-        default:
-            return res.status(400).json({ success: false, message: 'Invalid export type' });
+        case 'vehicle': tableName = 'vehicle_cases'; break;
+        case 'msme': tableName = 'msme_cases'; break;
+        case 'pl': tableName = 'pl_cases'; break;
+        case 'payout': tableName = 'payouts'; break;
+        default: return res.json({ success: false, message: 'Invalid type' });
     }
-
-    db.all(`SELECT * FROM ${tableName}`, [], (err, rows) => {
+    db.all(`SELECT * FROM ${tableName}`, (err, rows) => {
         if (err) {
-            res.status(500).json({ success: false, message: err.message });
+            res.json({ success: false, message: err.message });
         } else {
-            res.json({ success: true, data: rows });
+            const csv = convertToCSV(rows);
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename=${type}-data-${Date.now()}.csv`);
+            res.send(csv);
         }
     });
 });
 
+// Helper function to add to payouts
+function addToPayouts(data, productType, caseId) {
+    const query = `INSERT INTO payouts (
+        date, month, product, case_book_at, customer_name, address, applicant_occupation,
+        loan_end_used, mobile, property_type, irr, finance_amount, status, disbursement_date,
+        sourcing, charges, bt_amount, net_amount, extra_fund, total_loan_amount, emi_amount,
+        tenure, payout_status, case_type, case_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    db.run(query, [
+        data.date, data.month, productType, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.loan_end_used || data.vehicle_end_used, data.mobile,
+        data.property_type || '', data.irr || data.roi, data.finance_amount || data.loan_amount, 
+        data.status, data.disbursement_date || data.disbursed_date,
+        data.sourcing || data.sourcing_from, data.charges || data.total_charges, 
+        data.bt_amount, data.net_amount, data.extra_fund,
+        data.total_loan_amount, data.emi_amount, data.tenure || data.tenure_months, 
+        'Pending', productType, caseId
+    ]);
+}
+
+// Helper function to convert to CSV
+function convertToCSV(data) {
+    if (!data.length) return '';
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    for (const row of data) {
+        const values = headers.map(header => {
+            const value = row[header] === null || row[header] === undefined ? '' : row[header];
+            const escaped = String(value).replace(/"/g, '""');
+            return `"${escaped}"`;
+        });
+        csvRows.push(values.join(','));
+    }
+    return csvRows.join('\n');
+}
+
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Serve pages
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Remove binding to '0.0.0.0' for better compatibility
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Swastik Financial Solutions DSA Loan System Ready!`);
+    console.log(`👑 Admin Panel: http://localhost:${PORT}/admin`);
+    console.log(`💾 Database: ${dbPath}`);
 });
