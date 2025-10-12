@@ -9,17 +9,18 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Ensure data directory exists for persistent storage
+// Ensure data directory exists
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Database setup with persistent storage
+// Database setup
 const dbPath = path.join(dataDir, 'dsa_loan.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -42,8 +43,9 @@ const emailTransporter = nodemailer.createTransport({
 let currentUser = null;
 let otpStorage = {};
 
+// Initialize database tables
 function initializeDatabase() {
-    // Create enhanced users table with email
+    // Users table
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -54,17 +56,16 @@ function initializeDatabase() {
     )`, () => {
         console.log('✅ Users table ready');
         
-        // Insert only super admin user
+        // Create super admin user
         const superAdmin = ['admin', 'rathorekishor88@gmail.com', 'Jaipur#1992', 'super_admin'];
-        
         db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
             superAdmin, (err) => {
             if (err) console.log('Error creating super admin:', err);
-            else console.log('✅ Super Admin created: rathorekishor88@gmail.com');
+            else console.log('✅ Super Admin created: rathorekishor88@gmail.com / Jaipur#1992');
         });
     });
 
-    // Enhanced Vehicle Cases table
+    // Vehicle Cases table
     db.run(`CREATE TABLE IF NOT EXISTS vehicle_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT,
@@ -105,9 +106,9 @@ function initializeDatabase() {
         tenure INTEGER,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => console.log('✅ Enhanced Vehicle cases table ready'));
+    )`, () => console.log('✅ Vehicle cases table ready'));
 
-    // Enhanced MSME Cases table
+    // MSME Cases table
     db.run(`CREATE TABLE IF NOT EXISTS msme_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT,
@@ -135,9 +136,9 @@ function initializeDatabase() {
         tenure INTEGER,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => console.log('✅ Enhanced MSME cases table ready'));
+    )`, () => console.log('✅ MSME cases table ready'));
 
-    // Enhanced PL Cases table
+    // Personal Loan Cases table
     db.run(`CREATE TABLE IF NOT EXISTS pl_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT,
@@ -161,9 +162,9 @@ function initializeDatabase() {
         emi_amount REAL,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => console.log('✅ Enhanced PL cases table ready'));
+    )`, () => console.log('✅ PL cases table ready'));
 
-    // Enhanced Payouts table
+    // Payouts table
     db.run(`CREATE TABLE IF NOT EXISTS payouts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         payout_date TEXT,
@@ -185,28 +186,25 @@ function initializeDatabase() {
         case_type TEXT,
         case_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => console.log('✅ Enhanced Payouts table ready'));
+    )`, () => console.log('✅ Payouts table ready'));
 }
 
-// Password validation function
+// Validation functions
 function validatePassword(password) {
     const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@#$!^%*])[A-Za-z\d@#$!^%*]{8,}$/;
     return regex.test(password);
 }
 
-// Email validation function
 function validateEmail(email) {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
 }
 
-// Mobile number validation function
 function validateMobile(mobile) {
     const regex = /^[6-9]\d{9}$/;
     return regex.test(mobile);
 }
 
-// Generate OTP
 function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -244,6 +242,8 @@ function addToPayouts(data, caseType, caseId) {
         caseId
     ]);
 }
+
+// ==================== API ROUTES ====================
 
 // Login API
 app.post('/api/login', (req, res) => {
@@ -308,7 +308,7 @@ app.post('/api/forgot-password', async (req, res) => {
     });
 });
 
-// Verify OTP and Reset Password
+// Reset Password
 app.post('/api/reset-password', (req, res) => {
     const { email, otp, newPassword } = req.body;
     
@@ -341,55 +341,7 @@ app.post('/api/reset-password', (req, res) => {
     });
 });
 
-// Create User API
-app.post('/api/create-user', (req, res) => {
-    const { username, email, password, role } = req.body;
-    
-    if (!currentUser || currentUser.role !== 'super_admin') {
-        return res.json({ success: false, message: 'Unauthorized' });
-    }
-    
-    if (!validateEmail(email)) {
-        return res.json({ success: false, message: 'Invalid email format' });
-    }
-    
-    if (!validatePassword(password)) {
-        return res.json({ 
-            success: false, 
-            message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
-        });
-    }
-    
-    db.run(`INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
-    [username, email, password, role], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                res.json({ success: false, message: 'Email already exists' });
-            } else {
-                res.json({ success: false, message: err.message });
-            }
-        } else {
-            res.json({ success: true, message: 'User created successfully' });
-        }
-    });
-});
-
-// Get all users (for admin only)
-app.get('/api/users', (req, res) => {
-    if (!currentUser || currentUser.role !== 'super_admin') {
-        return res.json({ success: false, message: 'Unauthorized' });
-    }
-    
-    db.all('SELECT id, username, email, role, created_at FROM users', [], (err, rows) => {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, data: rows });
-        }
-    });
-});
-
-// Get all enhanced data
+// Get all data
 app.get('/api/all-data', (req, res) => {
     Promise.all([
         new Promise((resolve) => db.all('SELECT * FROM vehicle_cases', (err, rows) => resolve(rows || []))),
@@ -411,11 +363,10 @@ app.get('/api/all-data', (req, res) => {
     });
 });
 
-// Enhanced Vehicle Cases API
+// Vehicle Cases API
 app.post('/api/vehicle-cases', (req, res) => {
     const data = req.body;
     
-    // Validate mobile number
     if (data.mobile && !validateMobile(data.mobile)) {
         return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
     }
@@ -452,12 +403,10 @@ app.post('/api/vehicle-cases', (req, res) => {
     });
 });
 
-// Update Vehicle Case API
 app.put('/api/vehicle-cases/:id', (req, res) => {
     const id = req.params.id;
     const data = req.body;
     
-    // Validate mobile number
     if (data.mobile && !validateMobile(data.mobile)) {
         return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
     }
@@ -489,25 +438,21 @@ app.put('/api/vehicle-cases/:id', (req, res) => {
     });
 });
 
-// Get Vehicle Case by ID
 app.get('/api/vehicle-cases/:id', (req, res) => {
     const id = req.params.id;
     
-    // Validate ID
     if (!id || isNaN(id)) {
         return res.json({ success: false, message: 'Invalid case ID' });
     }
     
     db.get('SELECT * FROM vehicle_cases WHERE id = ?', [id], (err, row) => {
         if (err) {
-            console.error('Database error:', err);
             res.json({ success: false, message: 'Database error' });
         } else if (row) {
             try {
                 row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
                 res.json({ success: true, data: row });
             } catch (parseError) {
-                console.error('JSON parse error:', parseError);
                 row.co_applicants = [];
                 res.json({ success: true, data: row });
             }
@@ -517,11 +462,24 @@ app.get('/api/vehicle-cases/:id', (req, res) => {
     });
 });
 
-// Enhanced MSME Cases API
+app.delete('/api/vehicle-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM vehicle_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else if (this.changes > 0) {
+            res.json({ success: true, message: 'Vehicle case deleted successfully' });
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
+// MSME Cases API
 app.post('/api/msme-cases', (req, res) => {
     const data = req.body;
     
-    // Validate mobile number
     if (data.mobile && !validateMobile(data.mobile)) {
         return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
     }
@@ -553,12 +511,34 @@ app.post('/api/msme-cases', (req, res) => {
     });
 });
 
-// Update MSME Case API
+app.get('/api/msme-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid case ID' });
+    }
+    
+    db.get('SELECT * FROM msme_cases WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            try {
+                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
+                res.json({ success: true, data: row });
+            } catch (parseError) {
+                row.co_applicants = [];
+                res.json({ success: true, data: row });
+            }
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
 app.put('/api/msme-cases/:id', (req, res) => {
     const id = req.params.id;
     const data = req.body;
     
-    // Validate mobile number
     if (data.mobile && !validateMobile(data.mobile)) {
         return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
     }
@@ -585,39 +565,10 @@ app.put('/api/msme-cases/:id', (req, res) => {
     });
 });
 
-// Get MSME Case by ID
-app.get('/api/msme-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    // Validate ID
-    if (!id || isNaN(id)) {
-        return res.json({ success: false, message: 'Invalid case ID' });
-    }
-    
-    db.get('SELECT * FROM msme_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            console.error('Database error:', err);
-            res.json({ success: false, message: 'Database error' });
-        } else if (row) {
-            try {
-                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-                res.json({ success: true, data: row });
-            } catch (parseError) {
-                console.error('JSON parse error:', parseError);
-                row.co_applicants = [];
-                res.json({ success: true, data: row });
-            }
-        } else {
-            res.json({ success: false, message: 'Case not found' });
-        }
-    });
-});
-
-// Enhanced PL Cases API
+// PL Cases API
 app.post('/api/pl-cases', (req, res) => {
     const data = req.body;
     
-    // Validate contact number
     if (data.contact_no && !validateMobile(data.contact_no)) {
         return res.json({ success: false, message: 'Contact number must be 10 digits and start with 6-9' });
     }
@@ -649,12 +600,34 @@ app.post('/api/pl-cases', (req, res) => {
     });
 });
 
-// Update PL Case API
+app.get('/api/pl-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid case ID' });
+    }
+    
+    db.get('SELECT * FROM pl_cases WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            try {
+                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
+                res.json({ success: true, data: row });
+            } catch (parseError) {
+                row.co_applicants = [];
+                res.json({ success: true, data: row });
+            }
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
 app.put('/api/pl-cases/:id', (req, res) => {
     const id = req.params.id;
     const data = req.body;
     
-    // Validate contact number
     if (data.contact_no && !validateMobile(data.contact_no)) {
         return res.json({ success: false, message: 'Contact number must be 10 digits and start with 6-9' });
     }
@@ -677,34 +650,6 @@ app.put('/api/pl-cases/:id', (req, res) => {
             res.json({ success: false, message: err.message });
         } else {
             res.json({ success: true, message: 'PL case updated successfully' });
-        }
-    });
-});
-
-// Get PL Case by ID
-app.get('/api/pl-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    // Validate ID
-    if (!id || isNaN(id)) {
-        return res.json({ success: false, message: 'Invalid case ID' });
-    }
-    
-    db.get('SELECT * FROM pl_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            console.error('Database error:', err);
-            res.json({ success: false, message: 'Database error' });
-        } else if (row) {
-            try {
-                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-                res.json({ success: true, data: row });
-            } catch (parseError) {
-                console.error('JSON parse error:', parseError);
-                row.co_applicants = [];
-                res.json({ success: true, data: row });
-            }
-        } else {
-            res.json({ success: false, message: 'Case not found' });
         }
     });
 });
@@ -735,7 +680,24 @@ app.post('/api/payouts', (req, res) => {
     });
 });
 
-// Update Payout API
+app.get('/api/payouts/:id', (req, res) => {
+    const id = req.params.id;
+    
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid payout ID' });
+    }
+    
+    db.get('SELECT * FROM payouts WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            res.json({ success: true, data: row });
+        } else {
+            res.json({ success: false, message: 'Payout not found' });
+        }
+    });
+});
+
 app.put('/api/payouts/:id', (req, res) => {
     const id = req.params.id;
     const data = req.body;
@@ -760,7 +722,36 @@ app.put('/api/payouts/:id', (req, res) => {
     });
 });
 
-// Get business analytics data
+app.delete('/api/payouts/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM payouts WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else if (this.changes > 0) {
+            res.json({ success: true, message: 'Payout deleted successfully' });
+        } else {
+            res.json({ success: false, message: 'Payout not found' });
+        }
+    });
+});
+
+// Process Payout API
+app.post('/api/process-payout/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run(`UPDATE payouts SET payout_status = 'Processed' WHERE id = ?`, [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else if (this.changes > 0) {
+            res.json({ success: true, message: 'Payout processed successfully' });
+        } else {
+            res.json({ success: false, message: 'Payout not found' });
+        }
+    });
+});
+
+// Analytics API
 app.get('/api/analytics', (req, res) => {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -770,55 +761,24 @@ app.get('/api/analytics', (req, res) => {
             strftime('%Y-%m', created_at) as month,
             COUNT(*) as total_cases,
             SUM(finance_amount) as total_amount,
-            CASE_BOOK_AT,
             COUNT(CASE WHEN status = 'Disbursed' THEN 1 END) as disbursed_cases
         FROM (
-            SELECT created_at, finance_amount, case_book_at, status FROM vehicle_cases
+            SELECT created_at, finance_amount, status FROM vehicle_cases
             UNION ALL
-            SELECT created_at, finance_amount, case_book_at, status FROM msme_cases
+            SELECT created_at, finance_amount, status FROM msme_cases
             UNION ALL
-            SELECT created_at, loan_amount as finance_amount, case_book_at, status FROM pl_cases
+            SELECT created_at, loan_amount as finance_amount, status FROM pl_cases
         )
         WHERE created_at >= ?
-        GROUP BY strftime('%Y-%m', created_at), case_book_at
-        ORDER BY month DESC, total_cases DESC
+        GROUP BY strftime('%Y-%m', created_at)
+        ORDER BY month DESC
     `;
     
     db.all(query, [sixMonthsAgo.toISOString()], (err, rows) => {
         if (err) {
             res.json({ success: false, message: err.message });
         } else {
-            const monthlyData = {};
-            const caseBookAtData = {};
-            
-            rows.forEach(row => {
-                if (!monthlyData[row.month]) {
-                    monthlyData[row.month] = {
-                        month: row.month,
-                        total_cases: 0,
-                        total_amount: 0,
-                        disbursed_cases: 0
-                    };
-                }
-                monthlyData[row.month].total_cases += row.total_cases;
-                monthlyData[row.month].total_amount += row.total_amount;
-                monthlyData[row.month].disbursed_cases += row.disbursed_cases;
-                
-                if (!caseBookAtData[row.case_book_at]) {
-                    caseBookAtData[row.case_book_at] = 0;
-                }
-                caseBookAtData[row.case_book_at] += row.total_cases;
-            });
-            
-            res.json({
-                success: true,
-                data: {
-                    monthly: Object.values(monthlyData),
-                    caseBookAt: Object.entries(caseBookAtData)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 10)
-                }
-            });
+            res.json({ success: true, data: rows });
         }
     });
 });
@@ -854,53 +814,18 @@ app.get('/api/export/:type', (req, res) => {
     });
 });
 
-// Delete case APIs
-app.delete('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    db.run('DELETE FROM vehicle_cases WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'Vehicle case deleted successfully' });
-        }
-    });
-});
-
-app.delete('/api/msme-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    db.run('DELETE FROM msme_cases WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'MSME case deleted successfully' });
-        }
-    });
-});
-
-app.delete('/api/pl-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    db.run('DELETE FROM pl_cases WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'PL case deleted successfully' });
-        }
-    });
-});
-
 // Catch-all route for undefined API endpoints
-app.use('/api/*', (req, res) => {
+app.all('/api/*', (req, res) => {
     res.status(404).json({ success: false, message: 'API endpoint not found' });
 });
 
-// Serve static files (this should be the last route)
+// Serve the main application
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📧 Super Admin Login: rathorekishor88@gmail.com / Jaipur#1992`);
 });
