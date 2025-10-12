@@ -170,9 +170,24 @@
                                     <select id="vehicleProduct" name="product" required>
                                         <option value="">Select Product</option>
                                         <option value="Car Loan">Car Loan</option>
-                                        <option value="Bike Loan">Bike Loan</option>
-                                        <option value="Commercial Vehicle">Commercial Vehicle</option>
                                         <option value="Tractor Loan">Tractor Loan</option>
+                                        <option value="Bike Loan">Bike Loan</option>
+                                        <option value="Commercial Vehicle Loan">Commercial Vehicle Loan</option>
+                                        <option value="Auto Rickshaw Loan">Auto Rickshaw Loan</option>
+                                        <option value="E-Rickshaw Loan">E-Rickshaw Loan</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleLoanType">Loan Type / Category</label>
+                                    <select id="vehicleLoanType" name="loan_type" required>
+                                        <option value="">Select Loan Type</option>
+                                        <option value="New">New</option>
+                                        <option value="Used">Used</option>
+                                        <option value="Refinance">Refinance</option>
+                                        <option value="Top-Up">Top-Up</option>
+                                        <option value="Balance Transfer">Balance Transfer</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                             </div>
@@ -187,7 +202,7 @@
                                     <input type="text" id="vehicleCustomerName" name="customer_name" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="vehicleMobile">Mobile</label>
+                                    <label for="vehicleMobile">Mobile No</label>
                                     <input type="tel" id="vehicleMobile" name="mobile" required maxlength="10" pattern="[6-9][0-9]{9}" title="10-digit mobile number starting with 6-9">
                                 </div>
                             </div>
@@ -200,11 +215,52 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="vehicleApplicantOccupation">Applicant Occupation</label>
-                                    <input type="text" id="vehicleApplicantOccupation" name="applicant_occupation" required>
+                                    <select id="vehicleApplicantOccupation" name="applicant_occupation" required>
+                                        <option value="">Select Occupation</option>
+                                        <option value="Business">Business</option>
+                                        <option value="Government Salary">Government Salary</option>
+                                        <option value="Private Salary">Private Salary</option>
+                                        <option value="Daily Wages">Daily Wages</option>
+                                        <option value="Agriculture">Agriculture</option>
+                                        <option value="Contractor / Builder">Contractor / Builder</option>
+                                        <option value="Professional (Doctor, Lawyer, Engineer, etc.)">Professional (Doctor, Lawyer, Engineer, etc.)</option>
+                                        <option value="Police / Defense Services">Police / Defense Services</option>
+                                        <option value="Real Estate Agent / Broker">Real Estate Agent / Broker</option>
+                                        <option value="Service Provider (Salon, Mechanic, etc.)">Service Provider (Salon, Mechanic, etc.)</option>
+                                        <option value="Other">Other</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="vehicleEndUsed">Vehicle End Used</label>
-                                    <input type="text" id="vehicleEndUsed" name="vehicle_end_used" required>
+                                    <select id="vehicleEndUsed" name="vehicle_end_used" required>
+                                        <option value="">Select End Use</option>
+                                        <option value="Personal">Personal</option>
+                                        <option value="Business">Business</option>
+                                        <option value="Loading / Goods Transport">Loading / Goods Transport</option>
+                                        <option value="Agriculture">Agriculture</option>
+                                        <option value="Commercial Passenger (Taxi, Bus, etc.)">Commercial Passenger (Taxi, Bus, etc.)</option>
+                                        <option value="Rental / Leasing">Rental / Leasing</option>
+                                        <option value="Government / Institutional Use">Government / Institutional Use</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="vehicleSourcing">Sourcing</label>
+                                    <select id="vehicleSourcing" name="sourcing" required>
+                                        <option value="">Select Sourcing</option>
+                                        <option value="Self">Self</option>
+                                        <option value="DSA">DSA</option>
+                                        <option value="Dealer">Dealer</option>
+                                        <option value="Referral">Referral</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleSourcingBy">Sourcing By</label>
+                                    <input type="text" id="vehicleSourcingBy" name="sourcing_by" required>
                                 </div>
                             </div>
                         </div>
@@ -214,16 +270,36 @@
                             <h3>Vehicle Details</h3>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="vehicleNo">Vehicle No</label>
-                                    <input type="text" id="vehicleNo" name="vehicle_no" required>
+                                    <label for="vehicleBrand">Brand | Manufacturers</label>
+                                    <input type="text" id="vehicleBrand" name="brand" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleModel">Vehicle Model</label>
+                                    <input type="text" id="vehicleModel" name="vehicle_model" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="vehicleModelYear">Model Year</label>
                                     <input type="text" id="vehicleModelYear" name="model_year" required>
                                 </div>
+                            </div>
+
+                            <div class="form-row">
                                 <div class="form-group">
-                                    <label for="vehicleModel">Vehicle Model</label>
-                                    <input type="text" id="vehicleModel" name="vehicle_model" required>
+                                    <label for="vehicleNo">Vehicle No</label>
+                                    <input type="text" id="vehicleNo" name="vehicle_no" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleInsuranceType">Insurance Type</label>
+                                    <select id="vehicleInsuranceType" name="insurance_type" required>
+                                        <option value="">Select Insurance Type</option>
+                                        <option value="First Party">First Party</option>
+                                        <option value="Third Party">Third Party</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleInsuranceEndDate">Insurance End Date</label>
+                                    <input type="date" id="vehicleInsuranceEndDate" name="insurance_end_date">
                                 </div>
                             </div>
                         </div>
@@ -233,37 +309,106 @@
                             <h3>Financial Details</h3>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="vehicleIrr">IRR (%)</label>
-                                    <input type="number" step="0.01" id="vehicleIrr" name="irr" required min="0" max="50">
+                                    <label for="vehicleFinanceAmount">Finance Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleFinanceAmount" name="finance_amount" required min="0" oninput="calculateVehicleEMI()">
                                 </div>
                                 <div class="form-group">
-                                    <label for="vehicleFinanceAmount">Finance Amount (₹)</label>
-                                    <input type="number" step="0.01" id="vehicleFinanceAmount" name="finance_amount" required min="0">
+                                    <label for="vehicleIrr">IRR (%)</label>
+                                    <input type="number" step="0.01" id="vehicleIrr" name="irr" required min="0" max="50" oninput="calculateVehicleEMI()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleTenure">Tenure (Months)</label>
+                                    <input type="number" id="vehicleTenure" name="tenure" required min="1" max="84" oninput="calculateVehicleEMI()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleEmiAmount">EMI Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleEmiAmount" name="emi_amount" readonly>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="vehicleRcLimitAmount">RC Limit Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleRcLimitAmount" name="rc_limit_amount" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleCharges">Charges (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleCharges" name="charges" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleRtoHold">RTO Hold (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleRtoHold" name="rto_hold" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleBtAmount">BT Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleBtAmount" name="bt_amount" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="vehicleDeferralHoldCompany">Deferral Hold Company (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleDeferralHoldCompany" name="deferral_hold_company" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleDeferralHoldOurSide">Deferral Hold Our Side (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleDeferralHoldOurSide" name="deferral_hold_our_side" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleInsuranceAmount">Insurance Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleInsuranceAmount" name="insurance_amount" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleExtraFund">Extra Fund (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleExtraFund" name="extra_fund" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="vehicleDeferralReleaseAmount">Deferral Release Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleDeferralReleaseAmount" name="deferral_release_amount" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleRtoReleaseAmount">RTO Release Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleRtoReleaseAmount" name="rto_release_amount" min="0" oninput="calculateVehicleTotals()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleTotalDisbursal">Total Disbursal (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleTotalDisbursal" name="total_disbursal" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleNetReleaseAmount">Net Release Amount (₹)</label>
+                                    <input type="number" step="0.01" id="vehicleNetReleaseAmount" name="net_release_amount" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Details -->
+                        <div class="form-section">
+                            <h3>Additional Details</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="vehiclePddRc">PDD RC</label>
+                                    <input type="text" id="vehiclePddRc" name="pdd_rc">
+                                </div>
+                                <div class="form-group">
+                                    <label for="vehicleRtoReleasedName">RTO Released Name</label>
+                                    <input type="text" id="vehicleRtoReleasedName" name="rto_released_name">
                                 </div>
                                 <div class="form-group">
                                     <label for="vehicleStatus">Status</label>
                                     <select id="vehicleStatus" name="status" required>
                                         <option value="">Select Status</option>
                                         <option value="Applied">Applied</option>
-                                        <option value="Approved">Approved</option>
+                                        <option value="In Process">In Process</option>
                                         <option value="Disbursed">Disbursed</option>
                                         <option value="Rejected">Rejected</option>
                                     </select>
                                 </div>
-                            </div>
-
-                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="vehicleDisbursementDate">Disbursement Date</label>
                                     <input type="date" id="vehicleDisbursementDate" name="disbursement_date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleSourcing">Sourcing</label>
-                                    <input type="text" id="vehicleSourcing" name="sourcing" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleSourcingBy">Sourcing By</label>
-                                    <input type="text" id="vehicleSourcingBy" name="sourcing_by" required>
                                 </div>
                             </div>
                         </div>
