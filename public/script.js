@@ -130,16 +130,66 @@ function clearFieldError(input) {
     }
 }
 
-function calculateVehicleTotals() {
+// Vehicle Loan Calculations
+function calculateVehicleEMI() {
     const financeAmount = parseFloat(document.getElementById('vehicleFinanceAmount').value) || 0;
-    const charges = parseFloat(document.getElementById('vehicleCharges').value) || 0;
-    const btAmount = parseFloat(document.getElementById('vehicleBtAmount').value) || 0;
-    const extraFund = parseFloat(document.getElementById('vehicleExtraFund').value) || 0;
+    const irr = parseFloat(document.getElementById('vehicleIrr').value) || 0;
+    const tenure = parseInt(document.getElementById('vehicleTenure').value) || 0;
     
-    const totalDisbursal = financeAmount + charges + btAmount + extraFund;
-    document.getElementById('vehicleTotalDisbursal').value = totalDisbursal.toFixed(2);
+    if (financeAmount > 0 && irr > 0 && tenure > 0) {
+        const monthlyRate = irr / 100 / 12;
+        const emi = financeAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure) / (Math.pow(1 + monthlyRate, tenure) - 1);
+        document.getElementById('vehicleEmiAmount').value = emi.toFixed(2);
+    } else {
+        document.getElementById('vehicleEmiAmount').value = '';
+    }
+    
+    calculateVehicleTotals();
 }
 
+function calculateVehicleTotals() {
+    const financeAmount = parseFloat(document.getElementById('vehicleFinanceAmount').value) || 0;
+    
+    // Hold amounts (subtract from total)
+    const rcLimitAmount = parseFloat(document.getElementById('vehicleRcLimitAmount').value) || 0;
+    const charges = parseFloat(document.getElementById('vehicleCharges').value) || 0;
+    const rtoHold = parseFloat(document.getElementById('vehicleRtoHold').value) || 0;
+    const btAmount = parseFloat(document.getElementById('vehicleBtAmount').value) || 0;
+    const deferralHoldCompany = parseFloat(document.getElementById('vehicleDeferralHoldCompany').value) || 0;
+    const deferralHoldOurSide = parseFloat(document.getElementById('vehicleDeferralHoldOurSide').value) || 0;
+    const insuranceAmount = parseFloat(document.getElementById('vehicleInsuranceAmount').value) || 0;
+    
+    // Release amounts (add to total)
+    const extraFund = parseFloat(document.getElementById('vehicleExtraFund').value) || 0;
+    const deferralReleaseAmount = parseFloat(document.getElementById('vehicleDeferralReleaseAmount').value) || 0;
+    const rtoReleaseAmount = parseFloat(document.getElementById('vehicleRtoReleaseAmount').value) || 0;
+    
+    // Calculate total disbursal
+    const totalDisbursal = financeAmount + charges + btAmount + extraFund;
+    document.getElementById('vehicleTotalDisbursal').value = totalDisbursal.toFixed(2);
+    
+    // Calculate net release amount
+    const totalHolds = rcLimitAmount + rtoHold + deferralHoldCompany + deferralHoldOurSide + insuranceAmount;
+    const totalReleases = deferralReleaseAmount + rtoReleaseAmount;
+    const netReleaseAmount = financeAmount - totalHolds + totalReleases;
+    document.getElementById('vehicleNetReleaseAmount').value = netReleaseAmount.toFixed(2);
+}
+
+// Update the existing setupFormCalculations function
+function setupFormCalculations() {
+    // Vehicle form calculations
+    const vehicleForm = document.getElementById('vehicleForm');
+    vehicleForm.addEventListener('input', function(e) {
+        if (e.target.name === 'finance_amount' || e.target.name === 'irr' || e.target.name === 'tenure' ||
+            e.target.name === 'rc_limit_amount' || e.target.name === 'charges' || e.target.name === 'rto_hold' ||
+            e.target.name === 'bt_amount' || e.target.name === 'deferral_hold_company' || 
+            e.target.name === 'deferral_hold_our_side' || e.target.name === 'insurance_amount' ||
+            e.target.name === 'extra_fund' || e.target.name === 'deferral_release_amount' ||
+            e.target.name === 'rto_release_amount') {
+            calculateVehicleTotals();
+        }
+    });
+}
 // Authentication handlers
 async function handleLogin(e) {
     e.preventDefault();
