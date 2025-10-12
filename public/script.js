@@ -74,6 +74,22 @@ function setupFormCalculations() {
             calculateVehicleTotals();
         }
     });
+
+    // MSME form calculations
+    const msmeForm = document.getElementById('msmeForm');
+    msmeForm.addEventListener('input', function(e) {
+        if (e.target.name === 'finance_amount' || e.target.name === 'payout_percent') {
+            calculateMsmeTotals();
+        }
+    });
+
+    // PL form calculations
+    const plForm = document.getElementById('plForm');
+    plForm.addEventListener('input', function(e) {
+        if (e.target.name === 'loan_amount' || e.target.name === 'payout_percent') {
+            calculatePlTotals();
+        }
+    });
 }
 
 function setupAutoMonth() {
@@ -191,20 +207,30 @@ function calculateVehicleTotals() {
     calculateVehicleEMI();
 }
 
-// Update the existing setupFormCalculations function
-function setupFormCalculations() {
-    // Vehicle form calculations
-    const vehicleForm = document.getElementById('vehicleForm');
-    vehicleForm.addEventListener('input', function(e) {
-        if (e.target.name === 'finance_amount' || e.target.name === 'irr' || e.target.name === 'tenure' ||
-            e.target.name === 'rc_limit_amount' || e.target.name === 'charges' || e.target.name === 'rto_hold' ||
-            e.target.name === 'bt_amount' || e.target.name === 'deferral_hold_company' || 
-            e.target.name === 'deferral_hold_our_side' || e.target.name === 'insurance_amount' ||
-            e.target.name === 'extra_fund' || e.target.name === 'deferral_release_amount' ||
-            e.target.name === 'rto_release_amount' || e.target.name === 'payout_percent') {
-            calculateVehicleTotals();
-        }
-    });
+// MSME Calculations
+function calculateMsmeTotals() {
+    const financeAmount = parseFloat(document.getElementById('msmeFinanceAmount').value) || 0;
+    const payoutPercent = parseFloat(document.getElementById('msmePayoutPercent').value) || 0;
+    
+    if (payoutPercent > 0) {
+        const payoutAmount = (financeAmount * payoutPercent) / 100;
+        document.getElementById('msmePayoutAmount').value = payoutAmount.toFixed(2);
+    } else {
+        document.getElementById('msmePayoutAmount').value = '';
+    }
+}
+
+// PL Calculations
+function calculatePlTotals() {
+    const loanAmount = parseFloat(document.getElementById('plLoanAmount').value) || 0;
+    const payoutPercent = parseFloat(document.getElementById('plPayoutPercent').value) || 0;
+    
+    if (payoutPercent > 0) {
+        const payoutAmount = (loanAmount * payoutPercent) / 100;
+        document.getElementById('plPayoutAmount').value = payoutAmount.toFixed(2);
+    } else {
+        document.getElementById('plPayoutAmount').value = '';
+    }
 }
 
 // Authentication handlers
@@ -420,11 +446,15 @@ async function handleVehicleSubmit(e) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact_no: data[`co_applicant_contact_${index}`],
+                address: data[`co_applicant_address_${index}`]
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -469,7 +499,8 @@ async function handleMsmeSubmit(e) {
     
     // Convert number fields
     const numberFields = ['irr', 'finance_amount', 'charges', 'bt_amount', 'net_amount', 
-                         'extra_fund', 'total_loan_amount', 'emi_amount', 'tenure'];
+                         'extra_fund', 'total_loan_amount', 'emi_amount', 'tenure',
+                         'payout_percent', 'payout_amount'];
     numberFields.forEach(field => {
         if (data[field]) data[field] = parseFloat(data[field]);
     });
@@ -481,11 +512,15 @@ async function handleMsmeSubmit(e) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact_no: data[`co_applicant_contact_${index}`],
+                address: data[`co_applicant_address_${index}`]
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -530,7 +565,7 @@ async function handlePlSubmit(e) {
     
     // Convert number fields
     const numberFields = ['roi', 'loan_amount', 'total_charges', 'bt_amount', 'extra_fund', 
-                         'tenure_months', 'emi_amount'];
+                         'tenure_months', 'emi_amount', 'payout_percent', 'payout_amount'];
     numberFields.forEach(field => {
         if (data[field]) data[field] = parseFloat(data[field]);
     });
@@ -542,11 +577,15 @@ async function handlePlSubmit(e) {
         if (data[`co_applicant_name_${index}`].trim() !== '') {
             data.co_applicants.push({
                 name: data[`co_applicant_name_${index}`],
-                relationship: data[`co_applicant_relationship_${index}`]
+                relationship: data[`co_applicant_relationship_${index}`],
+                contact_no: data[`co_applicant_contact_${index}`],
+                address: data[`co_applicant_address_${index}`]
             });
         }
         delete data[`co_applicant_name_${index}`];
         delete data[`co_applicant_relationship_${index}`];
+        delete data[`co_applicant_contact_${index}`];
+        delete data[`co_applicant_address_${index}`];
         index++;
     }
 
@@ -607,7 +646,7 @@ async function editVehicleCase(id) {
         
         if (data.co_applicants && data.co_applicants.length > 0) {
             data.co_applicants.forEach((applicant, index) => {
-                addCoApplicantField('vehicle', index, applicant.name, applicant.relationship);
+                addCoApplicantField('vehicle', index, applicant.name, applicant.relationship, applicant.contact_no, applicant.address);
             });
         }
         
@@ -657,7 +696,7 @@ async function editMsmeCase(id) {
         
         if (data.co_applicants && data.co_applicants.length > 0) {
             data.co_applicants.forEach((applicant, index) => {
-                addCoApplicantField('msme', index, applicant.name, applicant.relationship);
+                addCoApplicantField('msme', index, applicant.name, applicant.relationship, applicant.contact_no, applicant.address);
             });
         }
         
@@ -707,7 +746,7 @@ async function editPlCase(id) {
         
         if (data.co_applicants && data.co_applicants.length > 0) {
             data.co_applicants.forEach((applicant, index) => {
-                addCoApplicantField('pl', index, applicant.name, applicant.relationship);
+                addCoApplicantField('pl', index, applicant.name, applicant.relationship, applicant.contact_no, applicant.address);
             });
         }
         
@@ -724,6 +763,79 @@ async function editPlCase(id) {
     } catch (error) {
         console.error('Error editing PL case:', error);
         showNotification('Error loading PL case: ' + error.message, 'error');
+    }
+}
+
+// Delete functions
+async function deleteVehicleCase(id) {
+    if (!confirm('Are you sure you want to delete this vehicle case?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/vehicle-cases/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Vehicle case deleted successfully!', 'success');
+            await loadAllData();
+            loadVehicleData();
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting vehicle case: ' + error.message, 'error');
+    }
+}
+
+async function deleteMsmeCase(id) {
+    if (!confirm('Are you sure you want to delete this MSME case?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/msme-cases/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('MSME case deleted successfully!', 'success');
+            await loadAllData();
+            loadMsmeData();
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting MSME case: ' + error.message, 'error');
+    }
+}
+
+async function deletePlCase(id) {
+    if (!confirm('Are you sure you want to delete this PL case?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pl-cases/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('PL case deleted successfully!', 'success');
+            await loadAllData();
+            loadPlData();
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting PL case: ' + error.message, 'error');
     }
 }
 
@@ -783,8 +895,33 @@ async function processPayout(id) {
     }
 }
 
-// Co-applicant functions
-function addCoApplicantField(formType, index, name = '', relationship = '') {
+// Delete Payout
+async function deletePayout(id) {
+    if (!confirm('Are you sure you want to delete this payout?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/payouts/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Payout deleted successfully!', 'success');
+            await loadAllData();
+            loadPayoutData();
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting payout: ' + error.message, 'error');
+    }
+}
+
+// Co-applicant functions - UPDATED FORMAT
+function addCoApplicantField(formType, index, name = '', relationship = '', contact = '', address = '') {
     const container = document.getElementById(`${formType}CoApplicants`);
     const div = document.createElement('div');
     div.className = 'co-applicant-field';
@@ -795,11 +932,22 @@ function addCoApplicantField(formType, index, name = '', relationship = '') {
                 <input type="text" name="co_applicant_name_${index}" value="${name}" required>
             </div>
             <div class="form-group">
-                <label>Relationship</label>
+                <label>Relationship of Applicant</label>
                 <input type="text" name="co_applicant_relationship_${index}" value="${relationship}" required>
+            </div>
+            <div class="form-group">
+                <label>Contact No.</label>
+                <input type="tel" name="co_applicant_contact_${index}" value="${contact}" maxlength="10" pattern="[6-9][0-9]{9}" title="10-digit mobile number starting with 6-9" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group full-width">
+                <label>Address</label>
+                <textarea name="co_applicant_address_${index}" rows="2" required>${address}</textarea>
             </div>
             <button type="button" class="btn-danger" onclick="removeCoApplicantField(this)">Remove</button>
         </div>
+        <hr>
     `;
     container.appendChild(div);
 }
@@ -849,6 +997,7 @@ function displayVehicleData(data) {
             <td><span class="status-${item.status?.toLowerCase()}">${item.status || ''}</span></td>
             <td>
                 <button class="btn-edit" onclick="editVehicleCase(${item.id})">Edit</button>
+                <button class="btn-danger" onclick="deleteVehicleCase(${item.id})">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -870,6 +1019,7 @@ function displayMsmeData(data) {
             <td><span class="status-${item.status?.toLowerCase()}">${item.status || ''}</span></td>
             <td>
                 <button class="btn-edit" onclick="editMsmeCase(${item.id})">Edit</button>
+                <button class="btn-danger" onclick="deleteMsmeCase(${item.id})">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -890,6 +1040,7 @@ function displayPlData(data) {
             <td><span class="status-${item.status?.toLowerCase()}">${item.status || ''}</span></td>
             <td>
                 <button class="btn-edit" onclick="editPlCase(${item.id})">Edit</button>
+                <button class="btn-danger" onclick="deletePlCase(${item.id})">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -914,6 +1065,7 @@ function displayPayoutData(data) {
                     `<button class="btn-process" onclick="processPayout(${item.id})">Process</button>` : 
                     `<button class="btn-edit" onclick="editPayout(${item.id})">Edit</button>`
                 }
+                <button class="btn-danger" onclick="deletePayout(${item.id})">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -1079,6 +1231,10 @@ window.editMsmeCase = editMsmeCase;
 window.editPlCase = editPlCase;
 window.editPayout = editPayout;
 window.processPayout = processPayout;
+window.deleteVehicleCase = deleteVehicleCase;
+window.deleteMsmeCase = deleteMsmeCase;
+window.deletePlCase = deletePlCase;
+window.deletePayout = deletePayout;
 window.addNewCoApplicant = addNewCoApplicant;
 window.removeCoApplicantField = removeCoApplicantField;
 window.exportData = exportData;
