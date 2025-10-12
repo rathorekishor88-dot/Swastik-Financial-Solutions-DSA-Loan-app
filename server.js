@@ -65,48 +65,50 @@ function initializeDatabase() {
         });
     });
 
-    // Vehicle Cases table
+    // Enhanced Vehicle Cases table
     db.run(`CREATE TABLE IF NOT EXISTS vehicle_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT,
         month TEXT,
         product TEXT,
+        loan_type TEXT,
         case_book_at TEXT,
         customer_name TEXT,
         address TEXT,
         applicant_occupation TEXT,
         vehicle_end_used TEXT,
         mobile TEXT,
-        vehicle_no TEXT,
-        model_year TEXT,
-        vehicle_model TEXT,
-        irr REAL,
-        finance_amount REAL,
-        status TEXT,
-        disbursement_date TEXT,
         sourcing TEXT,
         sourcing_by TEXT,
-        rc_limit_amount REAL,
-        charges REAL,
-        rto_hold TEXT,
-        bt_amount REAL,
-        deferral_hold_company TEXT,
-        deferral_hold_our_side TEXT,
-        release_amount REAL,
-        deferral_release_amount REAL,
-        rto_release_amount REAL,
-        insurance_amount REAL,
-        total_disbursal REAL,
-        extra_fund REAL,
-        rto_released_name TEXT,
+        brand TEXT,
+        vehicle_model TEXT,
+        model_year TEXT,
+        vehicle_no TEXT,
         insurance_type TEXT,
         insurance_end_date TEXT,
-        pdd_rc TEXT,
-        emi_amount REAL,
+        irr REAL,
+        finance_amount REAL,
         tenure INTEGER,
+        emi_amount REAL,
+        rc_limit_amount REAL,
+        charges REAL,
+        rto_hold REAL,
+        bt_amount REAL,
+        deferral_hold_company REAL,
+        deferral_hold_our_side REAL,
+        insurance_amount REAL,
+        extra_fund REAL,
+        deferral_release_amount REAL,
+        rto_release_amount REAL,
+        total_disbursal REAL,
+        net_release_amount REAL,
+        pdd_rc TEXT,
+        rto_released_name TEXT,
+        status TEXT,
+        disbursement_date TEXT,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => console.log('✅ Vehicle cases table ready'));
+    )`, () => console.log('✅ Enhanced Vehicle cases table ready'));
 
     // MSME Cases table
     db.run(`CREATE TABLE IF NOT EXISTS msme_cases (
@@ -372,23 +374,23 @@ app.post('/api/vehicle-cases', (req, res) => {
     }
     
     const query = `INSERT INTO vehicle_cases (
-        date, month, product, case_book_at, customer_name, address, applicant_occupation, 
-        vehicle_end_used, mobile, vehicle_no, model_year, vehicle_model, irr, finance_amount, 
-        status, disbursement_date, sourcing, sourcing_by, rc_limit_amount, charges, rto_hold, bt_amount, 
-        deferral_hold_company, deferral_hold_our_side, release_amount, deferral_release_amount, 
-        rto_release_amount, insurance_amount, total_disbursal, extra_fund, rto_released_name, 
-        insurance_type, insurance_end_date, pdd_rc, emi_amount, tenure, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        date, month, product, loan_type, case_book_at, customer_name, address, applicant_occupation, 
+        vehicle_end_used, mobile, sourcing, sourcing_by, brand, vehicle_model, model_year, vehicle_no,
+        insurance_type, insurance_end_date, irr, finance_amount, tenure, emi_amount, rc_limit_amount, 
+        charges, rto_hold, bt_amount, deferral_hold_company, deferral_hold_our_side, insurance_amount,
+        extra_fund, deferral_release_amount, rto_release_amount, total_disbursal, net_release_amount,
+        pdd_rc, rto_released_name, status, disbursement_date, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
-        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
-        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
-        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
-        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
-        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
-        data.tenure, JSON.stringify(data.co_applicants || [])
+        data.date, data.month, data.product, data.loan_type, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.sourcing, data.sourcing_by,
+        data.brand, data.vehicle_model, data.model_year, data.vehicle_no, data.insurance_type, data.insurance_end_date,
+        data.irr, data.finance_amount, data.tenure, data.emi_amount, data.rc_limit_amount, data.charges,
+        data.rto_hold, data.bt_amount, data.deferral_hold_company, data.deferral_hold_our_side, data.insurance_amount,
+        data.extra_fund, data.deferral_release_amount, data.rto_release_amount, data.total_disbursal,
+        data.net_release_amount, data.pdd_rc, data.rto_released_name, data.status, data.disbursement_date,
+        JSON.stringify(data.co_applicants || [])
     ];
     
     db.run(query, values, function(err) {
@@ -398,66 +400,7 @@ app.post('/api/vehicle-cases', (req, res) => {
             if (data.status === 'Disbursed') {
                 addToPayouts(data, 'Vehicle', this.lastID);
             }
-            res.json({ success: true, message: 'Vehicle case saved successfully', id: this.lastID });
-        }
-    });
-});
-
-app.put('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    const data = req.body;
-    
-    if (data.mobile && !validateMobile(data.mobile)) {
-        return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
-    }
-    
-    const query = `UPDATE vehicle_cases SET 
-        date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?, 
-        vehicle_end_used = ?, mobile = ?, vehicle_no = ?, model_year = ?, vehicle_model = ?, irr = ?, finance_amount = ?, 
-        status = ?, disbursement_date = ?, sourcing = ?, sourcing_by = ?, rc_limit_amount = ?, charges = ?, rto_hold = ?, bt_amount = ?, 
-        deferral_hold_company = ?, deferral_hold_our_side = ?, release_amount = ?, deferral_release_amount = ?, 
-        rto_release_amount = ?, insurance_amount = ?, total_disbursal = ?, extra_fund = ?, rto_released_name = ?, 
-        insurance_type = ?, insurance_end_date = ?, pdd_rc = ?, emi_amount = ?, tenure = ?, co_applicants = ?
-        WHERE id = ?`;
-    
-    db.run(query, [
-        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
-        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
-        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
-        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
-        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
-        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
-        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
-        data.tenure, JSON.stringify(data.co_applicants || []), id
-    ], function(err) {
-        if (err) {
-            res.json({ success: false, message: err.message });
-        } else {
-            res.json({ success: true, message: 'Vehicle case updated successfully' });
-        }
-    });
-});
-
-app.get('/api/vehicle-cases/:id', (req, res) => {
-    const id = req.params.id;
-    
-    if (!id || isNaN(id)) {
-        return res.json({ success: false, message: 'Invalid case ID' });
-    }
-    
-    db.get('SELECT * FROM vehicle_cases WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.json({ success: false, message: 'Database error' });
-        } else if (row) {
-            try {
-                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
-                res.json({ success: true, data: row });
-            } catch (parseError) {
-                row.co_applicants = [];
-                res.json({ success: true, data: row });
-            }
-        } else {
-            res.json({ success: false, message: 'Case not found' });
+            res.json({ success: false, message: 'Vehicle case saved successfully', id: this.lastID });
         }
     });
 });
