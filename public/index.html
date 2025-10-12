@@ -1,937 +1,906 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Swastik Financial Solutions - DSA Portal</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <!-- Login Section -->
-    <div id="loginSection" class="login-container">
-        <div class="login-box">
-            <div class="login-header">
-                <h2>Swastik Financial Solutions</h2>
-                <p>DSA Portal - Login</p>
-            </div>
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const path = require('path');
+const fs = require('fs');
+const nodemailer = require('nodemailer');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public'));
+
+// Ensure data directory exists for persistent storage
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Database setup with persistent storage
+const dbPath = path.join(dataDir, 'dsa_loan.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error opening database:', err);
+    } else {
+        console.log('✅ Connected to SQLite database');
+        initializeDatabase();
+    }
+});
+
+// Email configuration (for OTP)
+const emailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
+let currentUser = null;
+let otpStorage = {};
+
+function initializeDatabase() {
+    // Create enhanced users table with email
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, () => {
+        console.log('✅ Users table ready');
+        
+        // Insert only super admin user
+        const superAdmin = ['admin', 'rathorekishor88@gmail.com', 'Jaipur#1992', 'super_admin'];
+        
+        db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
+            superAdmin, (err) => {
+            if (err) console.log('Error creating super admin:', err);
+            else console.log('✅ Super Admin created: rathorekishor88@gmail.com');
+        });
+    });
+
+    // Enhanced Vehicle Cases table
+    db.run(`CREATE TABLE IF NOT EXISTS vehicle_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        month TEXT,
+        product TEXT,
+        case_book_at TEXT,
+        customer_name TEXT,
+        address TEXT,
+        applicant_occupation TEXT,
+        vehicle_end_used TEXT,
+        mobile TEXT,
+        vehicle_no TEXT,
+        model_year TEXT,
+        vehicle_model TEXT,
+        irr REAL,
+        finance_amount REAL,
+        status TEXT,
+        disbursement_date TEXT,
+        sourcing TEXT,
+        sourcing_by TEXT,
+        rc_limit_amount REAL,
+        charges REAL,
+        rto_hold TEXT,
+        bt_amount REAL,
+        deferral_hold_company TEXT,
+        deferral_hold_our_side TEXT,
+        release_amount REAL,
+        deferral_release_amount REAL,
+        rto_release_amount REAL,
+        insurance_amount REAL,
+        total_disbursal REAL,
+        extra_fund REAL,
+        rto_released_name TEXT,
+        insurance_type TEXT,
+        insurance_end_date TEXT,
+        pdd_rc TEXT,
+        emi_amount REAL,
+        tenure INTEGER,
+        co_applicants TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, () => console.log('✅ Enhanced Vehicle cases table ready'));
+
+    // Enhanced MSME Cases table
+    db.run(`CREATE TABLE IF NOT EXISTS msme_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        month TEXT,
+        product TEXT,
+        case_book_at TEXT,
+        customer_name TEXT,
+        address TEXT,
+        applicant_occupation TEXT,
+        loan_end_used TEXT,
+        mobile TEXT,
+        property_type TEXT,
+        irr REAL,
+        finance_amount REAL,
+        status TEXT,
+        disbursement_date TEXT,
+        sourcing TEXT,
+        sourcing_by TEXT,
+        charges REAL,
+        bt_amount REAL,
+        net_amount REAL,
+        extra_fund REAL,
+        total_loan_amount REAL,
+        emi_amount REAL,
+        tenure INTEGER,
+        co_applicants TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, () => console.log('✅ Enhanced MSME cases table ready'));
+
+    // Enhanced PL Cases table
+    db.run(`CREATE TABLE IF NOT EXISTS pl_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        month TEXT,
+        case_book_at TEXT,
+        customer_name TEXT,
+        address TEXT,
+        applicant_occupation TEXT,
+        loan_end_used TEXT,
+        contact_no TEXT,
+        roi REAL,
+        loan_amount REAL,
+        status TEXT,
+        disbursed_date TEXT,
+        sourcing TEXT,
+        sourcing_by TEXT,
+        total_charges REAL,
+        bt_amount REAL,
+        extra_fund REAL,
+        tenure_months INTEGER,
+        emi_amount REAL,
+        co_applicants TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, () => console.log('✅ Enhanced PL cases table ready'));
+
+    // Enhanced Payouts table
+    db.run(`CREATE TABLE IF NOT EXISTS payouts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payout_date TEXT,
+        disbursement_date TEXT,
+        product TEXT,
+        case_book_at TEXT,
+        customer_name TEXT,
+        mobile TEXT,
+        finance_amount REAL,
+        irr REAL,
+        payout_status TEXT,
+        payout_percent REAL,
+        payout_amount REAL,
+        gst REAL,
+        tds REAL,
+        net_amount_received REAL,
+        payout_given_to_referrals TEXT,
+        net_payout REAL,
+        case_type TEXT,
+        case_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, () => console.log('✅ Enhanced Payouts table ready'));
+}
+
+// Password validation function
+function validatePassword(password) {
+    const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@#$!^%*])[A-Za-z\d@#$!^%*]{8,}$/;
+    return regex.test(password);
+}
+
+// Email validation function
+function validateEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+}
+
+// Mobile number validation function
+function validateMobile(mobile) {
+    const regex = /^[6-9]\d{9}$/;
+    return regex.test(mobile);
+}
+
+// Generate OTP
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Helper function to add to payouts
+function addToPayouts(data, caseType, caseId) {
+    const payoutPercent = 0.5;
+    const payoutAmount = (data.finance_amount || data.loan_amount || 0) * (payoutPercent / 100);
+    const gst = payoutAmount * 0.18;
+    const tds = payoutAmount * 0.05;
+    const netAmountReceived = payoutAmount - gst - tds;
+    
+    db.run(`INSERT INTO payouts (
+        payout_date, disbursement_date, product, case_book_at, customer_name, mobile,
+        finance_amount, irr, payout_status, payout_percent, payout_amount, gst, tds,
+        net_amount_received, payout_given_to_referrals, net_payout, case_type, case_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        new Date().toISOString().split('T')[0],
+        data.disbursement_date || data.disbursed_date,
+        caseType,
+        data.case_book_at,
+        data.customer_name,
+        data.mobile || data.contact_no,
+        data.finance_amount || data.loan_amount,
+        data.irr || data.roi,
+        'Pending',
+        payoutPercent,
+        payoutAmount,
+        gst,
+        tds,
+        netAmountReceived,
+        data.sourcing_by,
+        netAmountReceived,
+        caseType,
+        caseId
+    ]);
+}
+
+// Login API
+app.post('/api/login', (req, res) => {
+    const { email, password } = req.body;
+    
+    db.get(`SELECT * FROM users WHERE email = ? AND password = ?`, 
+    [email, password], (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            currentUser = row;
+            res.json({ 
+                success: true, 
+                user: {
+                    username: row.username,
+                    email: row.email,
+                    role: row.role
+                }
+            });
+        } else {
+            res.json({ success: false, message: 'Invalid email or password' });
+        }
+    });
+});
+
+// Forgot Password - Send OTP
+app.post('/api/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    
+    if (!validateEmail(email)) {
+        return res.json({ success: false, message: 'Invalid email format' });
+    }
+    
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            const otp = generateOTP();
+            otpStorage[email] = {
+                otp: otp,
+                expires: Date.now() + 10 * 60 * 1000
+            };
             
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required>
-                </div>
+            try {
+                await emailTransporter.sendMail({
+                    from: process.env.EMAIL_USER,
+                    to: email,
+                    subject: 'Password Reset OTP - Swastik Financial Solutions',
+                    html: `
+                        <h2>Password Reset Request</h2>
+                        <p>Your OTP for password reset is: <strong>${otp}</strong></p>
+                        <p>This OTP will expire in 10 minutes.</p>
+                    `
+                });
+                res.json({ success: true, message: 'OTP sent to your email' });
+            } catch (error) {
+                res.json({ success: false, message: 'Failed to send OTP' });
+            }
+        } else {
+            res.json({ success: false, message: 'Email not found' });
+        }
+    });
+});
+
+// Verify OTP and Reset Password
+app.post('/api/reset-password', (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!validatePassword(newPassword)) {
+        return res.json({ 
+            success: false, 
+            message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
+        });
+    }
+    
+    const otpData = otpStorage[email];
+    
+    if (!otpData || otpData.expires < Date.now()) {
+        return res.json({ success: false, message: 'OTP expired or invalid' });
+    }
+    
+    if (otpData.otp !== otp) {
+        return res.json({ success: false, message: 'Invalid OTP' });
+    }
+    
+    db.run(`UPDATE users SET password = ? WHERE email = ?`, [newPassword, email], function(err) {
+        if (err) {
+            res.json({ success: false, message: 'Database error' });
+        } else if (this.changes > 0) {
+            delete otpStorage[email];
+            res.json({ success: true, message: 'Password reset successfully' });
+        } else {
+            res.json({ success: false, message: 'User not found' });
+        }
+    });
+});
+
+// Create User API
+app.post('/api/create-user', (req, res) => {
+    const { username, email, password, role } = req.body;
+    
+    if (!currentUser || currentUser.role !== 'super_admin') {
+        return res.json({ success: false, message: 'Unauthorized' });
+    }
+    
+    if (!validateEmail(email)) {
+        return res.json({ success: false, message: 'Invalid email format' });
+    }
+    
+    if (!validatePassword(password)) {
+        return res.json({ 
+            success: false, 
+            message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character (@#$!^%*)' 
+        });
+    }
+    
+    db.run(`INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
+    [username, email, password, role], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                res.json({ success: false, message: 'Email already exists' });
+            } else {
+                res.json({ success: false, message: err.message });
+            }
+        } else {
+            res.json({ success: true, message: 'User created successfully' });
+        }
+    });
+});
+
+// Get all users (for admin only)
+app.get('/api/users', (req, res) => {
+    if (!currentUser || currentUser.role !== 'super_admin') {
+        return res.json({ success: false, message: 'Unauthorized' });
+    }
+    
+    db.all('SELECT id, username, email, role, created_at FROM users', [], (err, rows) => {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, data: rows });
+        }
+    });
+});
+
+// Get all enhanced data
+app.get('/api/all-data', (req, res) => {
+    Promise.all([
+        new Promise((resolve) => db.all('SELECT * FROM vehicle_cases', (err, rows) => resolve(rows || []))),
+        new Promise((resolve) => db.all('SELECT * FROM msme_cases', (err, rows) => resolve(rows || []))),
+        new Promise((resolve) => db.all('SELECT * FROM pl_cases', (err, rows) => resolve(rows || []))),
+        new Promise((resolve) => db.all('SELECT * FROM payouts', (err, rows) => resolve(rows || [])))
+    ]).then(([vehicle, msme, pl, payout]) => {
+        res.json({
+            success: true,
+            data: {
+                vehicle: vehicle,
+                msme: msme,
+                pl: pl,
+                payout: payout
+            }
+        });
+    }).catch(err => {
+        res.json({ success: false, message: err.message });
+    });
+});
+
+// Enhanced Vehicle Cases API
+app.post('/api/vehicle-cases', (req, res) => {
+    const data = req.body;
+    
+    // Validate mobile number
+    if (data.mobile && !validateMobile(data.mobile)) {
+        return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `INSERT INTO vehicle_cases (
+        date, month, product, case_book_at, customer_name, address, applicant_occupation, 
+        vehicle_end_used, mobile, vehicle_no, model_year, vehicle_model, irr, finance_amount, 
+        status, disbursement_date, sourcing, sourcing_by, rc_limit_amount, charges, rto_hold, bt_amount, 
+        deferral_hold_company, deferral_hold_our_side, release_amount, deferral_release_amount, 
+        rto_release_amount, insurance_amount, total_disbursal, extra_fund, rto_released_name, 
+        insurance_type, insurance_end_date, pdd_rc, emi_amount, tenure, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [
+        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
+        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
+        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
+        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
+        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
+        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
+        data.tenure, JSON.stringify(data.co_applicants || [])
+    ];
+    
+    db.run(query, values, function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            if (data.status === 'Disbursed') {
+                addToPayouts(data, 'Vehicle', this.lastID);
+            }
+            res.json({ success: true, message: 'Vehicle case saved successfully', id: this.lastID });
+        }
+    });
+});
+
+// Update Vehicle Case API
+app.put('/api/vehicle-cases/:id', (req, res) => {
+    const id = req.params.id;
+    const data = req.body;
+    
+    // Validate mobile number
+    if (data.mobile && !validateMobile(data.mobile)) {
+        return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `UPDATE vehicle_cases SET 
+        date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?, 
+        vehicle_end_used = ?, mobile = ?, vehicle_no = ?, model_year = ?, vehicle_model = ?, irr = ?, finance_amount = ?, 
+        status = ?, disbursement_date = ?, sourcing = ?, sourcing_by = ?, rc_limit_amount = ?, charges = ?, rto_hold = ?, bt_amount = ?, 
+        deferral_hold_company = ?, deferral_hold_our_side = ?, release_amount = ?, deferral_release_amount = ?, 
+        rto_release_amount = ?, insurance_amount = ?, total_disbursal = ?, extra_fund = ?, rto_released_name = ?, 
+        insurance_type = ?, insurance_end_date = ?, pdd_rc = ?, emi_amount = ?, tenure = ?, co_applicants = ?
+        WHERE id = ?`;
+    
+    db.run(query, [
+        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.vehicle_end_used, data.mobile, data.vehicle_no, data.model_year,
+        data.vehicle_model, data.irr, data.finance_amount, data.status, data.disbursement_date,
+        data.sourcing, data.sourcing_by, data.rc_limit_amount, data.charges, data.rto_hold, data.bt_amount,
+        data.deferral_hold_company, data.deferral_hold_our_side, data.release_amount, data.deferral_release_amount,
+        data.rto_release_amount, data.insurance_amount, data.total_disbursal, data.extra_fund,
+        data.rto_released_name, data.insurance_type, data.insurance_end_date, data.pdd_rc, data.emi_amount,
+        data.tenure, JSON.stringify(data.co_applicants || []), id
+    ], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'Vehicle case updated successfully' });
+        }
+    });
+});
+
+// Get Vehicle Case by ID
+app.get('/api/vehicle-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    // Validate ID
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid case ID' });
+    }
+    
+    db.get('SELECT * FROM vehicle_cases WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            console.error('Database error:', err);
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            try {
+                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
+                res.json({ success: true, data: row });
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                row.co_applicants = [];
+                res.json({ success: true, data: row });
+            }
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
+// Enhanced MSME Cases API
+app.post('/api/msme-cases', (req, res) => {
+    const data = req.body;
+    
+    // Validate mobile number
+    if (data.mobile && !validateMobile(data.mobile)) {
+        return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `INSERT INTO msme_cases (
+        date, month, product, case_book_at, customer_name, address, applicant_occupation,
+        loan_end_used, mobile, property_type, irr, finance_amount, status, disbursement_date,
+        sourcing, sourcing_by, charges, bt_amount, net_amount, extra_fund, total_loan_amount, emi_amount,
+        tenure, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [
+        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
+        data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
+        data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
+        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || [])
+    ];
+    
+    db.run(query, values, function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            if (data.status === 'Disbursed') {
+                addToPayouts(data, 'MSME', this.lastID);
+            }
+            res.json({ success: true, message: 'MSME case saved successfully', id: this.lastID });
+        }
+    });
+});
+
+// Update MSME Case API
+app.put('/api/msme-cases/:id', (req, res) => {
+    const id = req.params.id;
+    const data = req.body;
+    
+    // Validate mobile number
+    if (data.mobile && !validateMobile(data.mobile)) {
+        return res.json({ success: false, message: 'Mobile number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `UPDATE msme_cases SET 
+        date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
+        loan_end_used = ?, mobile = ?, property_type = ?, irr = ?, finance_amount = ?, status = ?, disbursement_date = ?,
+        sourcing = ?, sourcing_by = ?, charges = ?, bt_amount = ?, net_amount = ?, extra_fund = ?, total_loan_amount = ?, emi_amount = ?,
+        tenure = ?, co_applicants = ?
+        WHERE id = ?`;
+    
+    db.run(query, [
+        data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
+        data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
+        data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
+        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || []), id
+    ], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'MSME case updated successfully' });
+        }
+    });
+});
+
+// Get MSME Case by ID
+app.get('/api/msme-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    // Validate ID
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid case ID' });
+    }
+    
+    db.get('SELECT * FROM msme_cases WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            console.error('Database error:', err);
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            try {
+                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
+                res.json({ success: true, data: row });
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                row.co_applicants = [];
+                res.json({ success: true, data: row });
+            }
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
+// Enhanced PL Cases API
+app.post('/api/pl-cases', (req, res) => {
+    const data = req.body;
+    
+    // Validate contact number
+    if (data.contact_no && !validateMobile(data.contact_no)) {
+        return res.json({ success: false, message: 'Contact number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `INSERT INTO pl_cases (
+        date, month, case_book_at, customer_name, address, applicant_occupation,
+        loan_end_used, contact_no, roi, loan_amount, status, disbursed_date,
+        sourcing, sourcing_by, total_charges, bt_amount, extra_fund, tenure_months, emi_amount,
+        co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [
+        data.date, data.month, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
+        data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
+        data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
+        data.emi_amount, JSON.stringify(data.co_applicants || [])
+    ];
+    
+    db.run(query, values, function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            if (data.status === 'Disbursed') {
+                addToPayouts(data, 'Personal Loan', this.lastID);
+            }
+            res.json({ success: true, message: 'PL case saved successfully', id: this.lastID });
+        }
+    });
+});
+
+// Update PL Case API
+app.put('/api/pl-cases/:id', (req, res) => {
+    const id = req.params.id;
+    const data = req.body;
+    
+    // Validate contact number
+    if (data.contact_no && !validateMobile(data.contact_no)) {
+        return res.json({ success: false, message: 'Contact number must be 10 digits and start with 6-9' });
+    }
+    
+    const query = `UPDATE pl_cases SET 
+        date = ?, month = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
+        loan_end_used = ?, contact_no = ?, roi = ?, loan_amount = ?, status = ?, disbursed_date = ?,
+        sourcing = ?, sourcing_by = ?, total_charges = ?, bt_amount = ?, extra_fund = ?, tenure_months = ?, emi_amount = ?,
+        co_applicants = ?
+        WHERE id = ?`;
+    
+    db.run(query, [
+        data.date, data.month, data.case_book_at, data.customer_name, data.address,
+        data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
+        data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
+        data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
+        data.emi_amount, JSON.stringify(data.co_applicants || []), id
+    ], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'PL case updated successfully' });
+        }
+    });
+});
+
+// Get PL Case by ID
+app.get('/api/pl-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    // Validate ID
+    if (!id || isNaN(id)) {
+        return res.json({ success: false, message: 'Invalid case ID' });
+    }
+    
+    db.get('SELECT * FROM pl_cases WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            console.error('Database error:', err);
+            res.json({ success: false, message: 'Database error' });
+        } else if (row) {
+            try {
+                row.co_applicants = row.co_applicants ? JSON.parse(row.co_applicants) : [];
+                res.json({ success: true, data: row });
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                row.co_applicants = [];
+                res.json({ success: true, data: row });
+            }
+        } else {
+            res.json({ success: false, message: 'Case not found' });
+        }
+    });
+});
+
+// Payouts API
+app.post('/api/payouts', (req, res) => {
+    const data = req.body;
+    
+    const query = `INSERT INTO payouts (
+        payout_date, disbursement_date, product, case_book_at, customer_name, mobile, 
+        finance_amount, irr, payout_status, payout_percent, payout_amount, gst, tds, 
+        net_amount_received, payout_given_to_referrals, net_payout
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [
+        data.payout_date, data.disbursement_date, data.product, data.case_book_at, 
+        data.customer_name, data.mobile, data.finance_amount, data.irr, data.payout_status,
+        data.payout_percent, data.payout_amount, data.gst, data.tds, data.net_amount_received,
+        data.payout_given_to_referrals, data.net_payout
+    ];
+    
+    db.run(query, values, function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'Payout saved successfully', id: this.lastID });
+        }
+    });
+});
+
+// Update Payout API
+app.put('/api/payouts/:id', (req, res) => {
+    const id = req.params.id;
+    const data = req.body;
+    
+    const query = `UPDATE payouts SET 
+        payout_date = ?, disbursement_date = ?, product = ?, case_book_at = ?, customer_name = ?, mobile = ?, 
+        finance_amount = ?, irr = ?, payout_status = ?, payout_percent = ?, payout_amount = ?, gst = ?, tds = ?, 
+        net_amount_received = ?, payout_given_to_referrals = ?, net_payout = ?
+        WHERE id = ?`;
+    
+    db.run(query, [
+        data.payout_date, data.disbursement_date, data.product, data.case_book_at, 
+        data.customer_name, data.mobile, data.finance_amount, data.irr, data.payout_status,
+        data.payout_percent, data.payout_amount, data.gst, data.tds, data.net_amount_received,
+        data.payout_given_to_referrals, data.net_payout, id
+    ], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'Payout updated successfully' });
+        }
+    });
+});
+
+// Get business analytics data
+app.get('/api/analytics', (req, res) => {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const query = `
+        SELECT 
+            strftime('%Y-%m', created_at) as month,
+            COUNT(*) as total_cases,
+            SUM(finance_amount) as total_amount,
+            CASE_BOOK_AT,
+            COUNT(CASE WHEN status = 'Disbursed' THEN 1 END) as disbursed_cases
+        FROM (
+            SELECT created_at, finance_amount, case_book_at, status FROM vehicle_cases
+            UNION ALL
+            SELECT created_at, finance_amount, case_book_at, status FROM msme_cases
+            UNION ALL
+            SELECT created_at, loan_amount as finance_amount, case_book_at, status FROM pl_cases
+        )
+        WHERE created_at >= ?
+        GROUP BY strftime('%Y-%m', created_at), case_book_at
+        ORDER BY month DESC, total_cases DESC
+    `;
+    
+    db.all(query, [sixMonthsAgo.toISOString()], (err, rows) => {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            const monthlyData = {};
+            const caseBookAtData = {};
+            
+            rows.forEach(row => {
+                if (!monthlyData[row.month]) {
+                    monthlyData[row.month] = {
+                        month: row.month,
+                        total_cases: 0,
+                        total_amount: 0,
+                        disbursed_cases: 0
+                    };
+                }
+                monthlyData[row.month].total_cases += row.total_cases;
+                monthlyData[row.month].total_amount += row.total_amount;
+                monthlyData[row.month].disbursed_cases += row.disbursed_cases;
                 
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                
-                <button type="submit" class="btn-primary">Login</button>
-                
-                <div class="login-links">
-                    <a href="#" id="forgotPasswordLink">Forgot Password?</a>
-                </div>
-            </form>
+                if (!caseBookAtData[row.case_book_at]) {
+                    caseBookAtData[row.case_book_at] = 0;
+                }
+                caseBookAtData[row.case_book_at] += row.total_cases;
+            });
+            
+            res.json({
+                success: true,
+                data: {
+                    monthly: Object.values(monthlyData),
+                    caseBookAt: Object.entries(caseBookAtData)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                }
+            });
+        }
+    });
+});
 
-            <!-- Forgot Password Form -->
-            <form id="forgotPasswordForm" class="login-form hidden">
-                <div class="form-group">
-                    <label for="forgotEmail">Email</label>
-                    <input type="email" id="forgotEmail" name="email" required>
-                </div>
-                <button type="submit" class="btn-primary">Send OTP</button>
-                <div class="login-links">
-                    <a href="#" id="backToLogin">Back to Login</a>
-                </div>
-            </form>
+// Export data API
+app.get('/api/export/:type', (req, res) => {
+    const { type } = req.params;
+    let tableName = '';
 
-            <!-- Reset Password Form -->
-            <form id="resetPasswordForm" class="login-form hidden">
-                <input type="hidden" id="resetEmail">
-                <div class="form-group">
-                    <label for="otp">OTP</label>
-                    <input type="text" id="otp" name="otp" required>
-                </div>
-                <div class="form-group">
-                    <label for="newPassword">New Password</label>
-                    <input type="password" id="newPassword" name="newPassword" required>
-                </div>
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" required>
-                </div>
-                <button type="submit" class="btn-primary">Reset Password</button>
-                <div class="login-links">
-                    <a href="#" id="backToLogin2">Back to Login</a>
-                </div>
-            </form>
-        </div>
-    </div>
+    switch(type) {
+        case 'vehicle':
+            tableName = 'vehicle_cases';
+            break;
+        case 'msme':
+            tableName = 'msme_cases';
+            break;
+        case 'pl':
+            tableName = 'pl_cases';
+            break;
+        case 'payout':
+            tableName = 'payouts';
+            break;
+        default:
+            return res.status(400).json({ success: false, message: 'Invalid export type' });
+    }
 
-    <!-- Main Application -->
-    <div id="mainApp" class="hidden">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1>Swastik Financial Solutions - DSA Portal</h1>
-                <div class="user-info">
-                    <span>Welcome, <span id="userName">User</span></span>
-                    <button id="logoutBtn" class="btn-logout">Logout</button>
-                </div>
-            </div>
-        </header>
+    db.all(`SELECT * FROM ${tableName}`, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, data: rows });
+        }
+    });
+});
 
-        <!-- Navigation -->
-        <nav class="navbar">
-            <div class="nav-content">
-                <button id="dashboardBtn" class="nav-btn active">Dashboard</button>
-                <button id="vehicleBtn" class="nav-btn">Vehicle Loans</button>
-                <button id="msmeBtn" class="nav-btn">MSME Loans</button>
-                <button id="plBtn" class="nav-btn">Personal Loans</button>
-                <button id="payoutBtn" class="nav-btn">Payouts</button>
-                <button id="userManagementBtn" class="nav-btn">User Management</button>
-            </div>
-        </nav>
+// Delete case APIs
+app.delete('/api/vehicle-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM vehicle_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'Vehicle case deleted successfully' });
+        }
+    });
+});
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Dashboard Section -->
-            <section id="dashboardSection" class="content-section">
-                <div class="section-header">
-                    <h2>Dashboard Overview</h2>
-                </div>
-                
-                <!-- Summary Cards -->
-                <div class="summary-cards">
-                    <div class="summary-card">
-                        <h3>Total Cases</h3>
-                        <div class="number" id="totalCases">0</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Total Amount</h3>
-                        <div class="number" id="totalAmount">₹0</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Disbursed Cases</h3>
-                        <div class="number" id="disbursedCases">0</div>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Pending Cases</h3>
-                        <div class="number" id="pendingCases">0</div>
-                    </div>
-                </div>
+app.delete('/api/msme-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM msme_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'MSME case deleted successfully' });
+        }
+    });
+});
 
-                <!-- Charts -->
-                <div class="charts-container">
-                    <div class="chart-card">
-                        <h3>Monthly Performance</h3>
-                        <canvas id="monthlyChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Top Sourcing Channels</h3>
-                        <canvas id="sourcingChart"></canvas>
-                    </div>
-                </div>
-            </section>
+app.delete('/api/pl-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM pl_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else {
+            res.json({ success: true, message: 'PL case deleted successfully' });
+        }
+    });
+});
 
-            <!-- Vehicle Loans Section -->
-            <section id="vehicleSection" class="content-section hidden">
-                <div class="section-header">
-                    <h2 id="vehicleFormTitle">Add Vehicle Loan Case</h2>
-                    <button class="btn-secondary" onclick="exportData('vehicle')">Export Data</button>
-                </div>
+// Catch-all route for undefined API endpoints
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ success: false, message: 'API endpoint not found' });
+});
 
-                <!-- Vehicle Loan Form -->
-                <form id="vehicleForm" class="loan-form">
-                    <div class="form-grid">
-                        <!-- Basic Information -->
-                        <div class="form-section">
-                            <h3>Basic Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleDate">Date</label>
-                                    <input type="date" id="vehicleDate" name="date" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleMonth">Month</label>
-                                    <input type="text" id="vehicleMonth" name="month" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleProduct">Product</label>
-                                    <select id="vehicleProduct" name="product" required>
-                                        <option value="">Select Product</option>
-                                        <option value="Car Loan">Car Loan</option>
-                                        <option value="Bike Loan">Bike Loan</option>
-                                        <option value="Commercial Vehicle">Commercial Vehicle</option>
-                                    </select>
-                                </div>
-                            </div>
+// Serve static files (this should be the last route)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleCaseBookAt">Case Book At</label>
-                                    <input type="text" id="vehicleCaseBookAt" name="case_book_at" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleCustomerName">Customer Name</label>
-                                    <input type="text" id="vehicleCustomerName" name="customer_name" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleMobile">Mobile</label>
-                                    <input type="tel" id="vehicleMobile" name="mobile" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group full-width">
-                                <label for="vehicleAddress">Address</label>
-                                <textarea id="vehicleAddress" name="address" rows="2" required></textarea>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleApplicantOccupation">Applicant Occupation</label>
-                                    <input type="text" id="vehicleApplicantOccupation" name="applicant_occupation" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleEndUsed">Vehicle End Used</label>
-                                    <input type="text" id="vehicleEndUsed" name="vehicle_end_used" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Vehicle Details -->
-                        <div class="form-section">
-                            <h3>Vehicle Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleNo">Vehicle No</label>
-                                    <input type="text" id="vehicleNo" name="vehicle_no" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleModelYear">Model Year</label>
-                                    <input type="text" id="vehicleModelYear" name="model_year" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleModel">Vehicle Model</label>
-                                    <input type="text" id="vehicleModel" name="vehicle_model" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Financial Details -->
-                        <div class="form-section">
-                            <h3>Financial Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleIrr">IRR (%)</label>
-                                    <input type="number" step="0.01" id="vehicleIrr" name="irr" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleFinanceAmount">Finance Amount</label>
-                                    <input type="number" step="0.01" id="vehicleFinanceAmount" name="finance_amount" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleStatus">Status</label>
-                                    <select id="vehicleStatus" name="status" required>
-                                        <option value="">Select Status</option>
-                                        <option value="Applied">Applied</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Disbursed">Disbursed</option>
-                                        <option value="Rejected">Rejected</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleDisbursementDate">Disbursement Date</label>
-                                    <input type="date" id="vehicleDisbursementDate" name="disbursement_date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleSourcing">Sourcing</label>
-                                    <input type="text" id="vehicleSourcing" name="sourcing" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleSourcingBy">Sourcing By</label>
-                                    <input type="text" id="vehicleSourcingBy" name="sourcing_by" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Amount Details -->
-                        <div class="form-section">
-                            <h3>Amount Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleRcLimitAmount">RC Limit Amount</label>
-                                    <input type="number" step="0.01" id="vehicleRcLimitAmount" name="rc_limit_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleCharges">Charges</label>
-                                    <input type="number" step="0.01" id="vehicleCharges" name="charges">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleRtoHold">RTO Hold</label>
-                                    <input type="text" id="vehicleRtoHold" name="rto_hold">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleBtAmount">BT Amount</label>
-                                    <input type="number" step="0.01" id="vehicleBtAmount" name="bt_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleDeferralHoldCompany">Deferral Hold Company</label>
-                                    <input type="text" id="vehicleDeferralHoldCompany" name="deferral_hold_company">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleDeferralHoldOurSide">Deferral Hold Our Side</label>
-                                    <input type="text" id="vehicleDeferralHoldOurSide" name="deferral_hold_our_side">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleReleaseAmount">Release Amount</label>
-                                    <input type="number" step="0.01" id="vehicleReleaseAmount" name="release_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleDeferralReleaseAmount">Deferral Release Amount</label>
-                                    <input type="number" step="0.01" id="vehicleDeferralReleaseAmount" name="deferral_release_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleRtoReleaseAmount">RTO Release Amount</label>
-                                    <input type="number" step="0.01" id="vehicleRtoReleaseAmount" name="rto_release_amount">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleInsuranceAmount">Insurance Amount</label>
-                                    <input type="number" step="0.01" id="vehicleInsuranceAmount" name="insurance_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleTotalDisbursal">Total Disbursal</label>
-                                    <input type="number" step="0.01" id="vehicleTotalDisbursal" name="total_disbursal" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleExtraFund">Extra Fund</label>
-                                    <input type="number" step="0.01" id="vehicleExtraFund" name="extra_fund">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Insurance Details -->
-                        <div class="form-section">
-                            <h3>Insurance & Other Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehicleRtoReleasedName">RTO Released Name</label>
-                                    <input type="text" id="vehicleRtoReleasedName" name="rto_released_name">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleInsuranceType">Insurance Type</label>
-                                    <input type="text" id="vehicleInsuranceType" name="insurance_type">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleInsuranceEndDate">Insurance End Date</label>
-                                    <input type="date" id="vehicleInsuranceEndDate" name="insurance_end_date">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="vehiclePddRc">PDD RC</label>
-                                    <input type="text" id="vehiclePddRc" name="pdd_rc">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleEmiAmount">EMI Amount</label>
-                                    <input type="number" step="0.01" id="vehicleEmiAmount" name="emi_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="vehicleTenure">Tenure (Months)</label>
-                                    <input type="number" id="vehicleTenure" name="tenure">
-                                </div>
-                            </div>
-                        </div>
-
-<!-- Co-applicants -->
-<div class="form-section">
-    <h3>Co-applicants</h3>
-    <div id="vehicleCoApplicants"></div>
-    <button type="button" class="btn-secondary" onclick="addNewCoApplicant('vehicle')">
-        Add Co-applicant
-    </button>
-</div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Save Vehicle Case</button>
-                        <button type="reset" class="btn-secondary">Reset Form</button>
-                    </div>
-                </form>
-
-                <!-- Vehicle Cases Table -->
-                <div class="table-container">
-                    <h3>Vehicle Loan Cases</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Customer Name</th>
-                                <th>Mobile</th>
-                                <th>Vehicle No</th>
-                                <th>Finance Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="vehicleTableBody">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- MSME Loans Section -->
-            <section id="msmeSection" class="content-section hidden">
-                <div class="section-header">
-                    <h2 id="msmeFormTitle">Add MSME Loan Case</h2>
-                    <button class="btn-secondary" onclick="exportData('msme')">Export Data</button>
-                </div>
-
-                <!-- MSME Loan Form -->
-                <form id="msmeForm" class="loan-form">
-                    <div class="form-grid">
-                        <!-- Basic Information -->
-                        <div class="form-section">
-                            <h3>Basic Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeDate">Date</label>
-                                    <input type="date" id="msmeDate" name="date" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeMonth">Month</label>
-                                    <input type="text" id="msmeMonth" name="month" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeProduct">Product</label>
-                                    <select id="msmeProduct" name="product" required>
-                                        <option value="">Select Product</option>
-                                        <option value="Business Loan">Business Loan</option>
-                                        <option value="Working Capital">Working Capital</option>
-                                        <option value="Equipment Finance">Equipment Finance</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeCaseBookAt">Case Book At</label>
-                                    <input type="text" id="msmeCaseBookAt" name="case_book_at" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeCustomerName">Customer Name</label>
-                                    <input type="text" id="msmeCustomerName" name="customer_name" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeMobile">Mobile</label>
-                                    <input type="tel" id="msmeMobile" name="mobile" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group full-width">
-                                <label for="msmeAddress">Address</label>
-                                <textarea id="msmeAddress" name="address" rows="2" required></textarea>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeApplicantOccupation">Applicant Occupation</label>
-                                    <input type="text" id="msmeApplicantOccupation" name="applicant_occupation" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeEndUsed">Loan End Used</label>
-                                    <input type="text" id="msmeEndUsed" name="loan_end_used" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmePropertyType">Property Type</label>
-                                    <input type="text" id="msmePropertyType" name="property_type" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Financial Details -->
-                        <div class="form-section">
-                            <h3>Financial Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeIrr">IRR (%)</label>
-                                    <input type="number" step="0.01" id="msmeIrr" name="irr" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeFinanceAmount">Finance Amount</label>
-                                    <input type="number" step="0.01" id="msmeFinanceAmount" name="finance_amount" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeStatus">Status</label>
-                                    <select id="msmeStatus" name="status" required>
-                                        <option value="">Select Status</option>
-                                        <option value="Applied">Applied</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Disbursed">Disbursed</option>
-                                        <option value="Rejected">Rejected</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeDisbursementDate">Disbursement Date</label>
-                                    <input type="date" id="msmeDisbursementDate" name="disbursement_date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeSourcing">Sourcing</label>
-                                    <input type="text" id="msmeSourcing" name="sourcing" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeSourcingBy">Sourcing By</label>
-                                    <input type="text" id="msmeSourcingBy" name="sourcing_by" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Amount Details -->
-                        <div class="form-section">
-                            <h3>Amount Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeCharges">Charges</label>
-                                    <input type="number" step="0.01" id="msmeCharges" name="charges">
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeBtAmount">BT Amount</label>
-                                    <input type="number" step="0.01" id="msmeBtAmount" name="bt_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeNetAmount">Net Amount</label>
-                                    <input type="number" step="0.01" id="msmeNetAmount" name="net_amount" readonly>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeExtraFund">Extra Fund</label>
-                                    <input type="number" step="0.01" id="msmeExtraFund" name="extra_fund">
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeTotalLoanAmount">Total Loan Amount</label>
-                                    <input type="number" step="0.01" id="msmeTotalLoanAmount" name="total_loan_amount" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="msmeEmiAmount">EMI Amount</label>
-                                    <input type="number" step="0.01" id="msmeEmiAmount" name="emi_amount">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="msmeTenure">Tenure (Months)</label>
-                                    <input type="number" id="msmeTenure" name="tenure">
-                                </div>
-                            </div>
-                        </div>
-<!-- Co-applicants -->
-<div class="form-section">
-    <h3>Co-applicants</h3>
-    <div id="vehicleCoApplicants"></div>
-    <button type="button" class="btn-secondary" onclick="addNewCoApplicant('msme')">
-        Add Co-applicant
-    </button>
-</div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Save MSME Case</button>
-                        <button type="reset" class="btn-secondary">Reset Form</button>
-                    </div>
-                </form>
-
-                <!-- MSME Cases Table -->
-                <div class="table-container">
-                    <h3>MSME Loan Cases</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Customer Name</th>
-                                <th>Mobile</th>
-                                <th>Property Type</th>
-                                <th>Finance Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="msmeTableBody">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Personal Loans Section -->
-            <section id="plSection" class="content-section hidden">
-                <div class="section-header">
-                    <h2 id="plFormTitle">Add Personal Loan Case</h2>
-                    <button class="btn-secondary" onclick="exportData('pl')">Export Data</button>
-                </div>
-
-                <!-- Personal Loan Form -->
-                <form id="plForm" class="loan-form">
-                    <div class="form-grid">
-                        <!-- Basic Information -->
-                        <div class="form-section">
-                            <h3>Basic Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plDate">Date</label>
-                                    <input type="date" id="plDate" name="date" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plMonth">Month</label>
-                                    <input type="text" id="plMonth" name="month" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plCaseBookAt">Case Book At</label>
-                                    <input type="text" id="plCaseBookAt" name="case_book_at" required>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plCustomerName">Customer Name</label>
-                                    <input type="text" id="plCustomerName" name="customer_name" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plContactNo">Contact No</label>
-                                    <input type="tel" id="plContactNo" name="contact_no" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group full-width">
-                                <label for="plAddress">Address</label>
-                                <textarea id="plAddress" name="address" rows="2" required></textarea>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plApplicantOccupation">Applicant Occupation</label>
-                                    <input type="text" id="plApplicantOccupation" name="applicant_occupation" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plEndUsed">Loan End Used</label>
-                                    <input type="text" id="plEndUsed" name="loan_end_used" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Financial Details -->
-                        <div class="form-section">
-                            <h3>Financial Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plRoi">ROI (%)</label>
-                                    <input type="number" step="0.01" id="plRoi" name="roi" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plLoanAmount">Loan Amount</label>
-                                    <input type="number" step="0.01" id="plLoanAmount" name="loan_amount" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plStatus">Status</label>
-                                    <select id="plStatus" name="status" required>
-                                        <option value="">Select Status</option>
-                                        <option value="Applied">Applied</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Disbursed">Disbursed</option>
-                                        <option value="Rejected">Rejected</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plDisbursedDate">Disbursed Date</label>
-                                    <input type="date" id="plDisbursedDate" name="disbursed_date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="plSourcing">Sourcing</label>
-                                    <input type="text" id="plSourcing" name="sourcing" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plSourcingBy">Sourcing By</label>
-                                    <input type="text" id="plSourcingBy" name="sourcing_by" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Amount Details -->
-                        <div class="form-section">
-                            <h3>Amount Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plTotalCharges">Total Charges</label>
-                                    <input type="number" step="0.01" id="plTotalCharges" name="total_charges">
-                                </div>
-                                <div class="form-group">
-                                    <label for="plBtAmount">BT Amount</label>
-                                    <input type="number" step="0.01" id="plBtAmount" name="bt_amount">
-                                </div>
-                                <div class="form-group">
-                                    <label for="plExtraFund">Extra Fund</label>
-                                    <input type="number" step="0.01" id="plExtraFund" name="extra_fund">
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="plNetAmount">Net Amount</label>
-                                    <input type="number" step="0.01" id="plNetAmount" name="net_amount" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label for="plTenureMonths">Tenure (Months)</label>
-                                    <input type="number" id="plTenureMonths" name="tenure_months">
-                                </div>
-                                <div class="form-group">
-                                    <label for="plEmiAmount">EMI Amount</label>
-                                    <input type="number" step="0.01" id="plEmiAmount" name="emi_amount">
-                                </div>
-                            </div>
-                        </div>
-
-<!-- Co-applicants -->
-<div class="form-section">
-    <h3>Co-applicants</h3>
-    <div id="vehicleCoApplicants"></div>
-    <button type="button" class="btn-secondary" onclick="addNewCoApplicant('pl')">
-        Add Co-applicant
-    </button>
-</div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Save PL Case</button>
-                        <button type="reset" class="btn-secondary">Reset Form</button>
-                    </div>
-                </form>
-
-                <!-- PL Cases Table -->
-                <div class="table-container">
-                    <h3>Personal Loan Cases</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Customer Name</th>
-                                <th>Contact No</th>
-                                <th>Loan Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="plTableBody">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Payouts Section -->
-            <section id="payoutSection" class="content-section hidden">
-                <div class="section-header">
-                    <h2>Payouts Management</h2>
-                    <button class="btn-secondary" onclick="exportData('payout')">Export Data</button>
-                </div>
-
-                <!-- Payout Form -->
-                <form id="payoutForm" class="loan-form">
-                    <div class="form-grid">
-                        <div class="form-section">
-                            <h3>Payout Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutDate">Payout Date</label>
-                                    <input type="date" id="payoutDate" name="payout_date" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutDisbursementDate">Disbursement Date</label>
-                                    <input type="date" id="payoutDisbursementDate" name="disbursement_date" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutProduct">Product</label>
-                                    <select id="payoutProduct" name="product" required>
-                                        <option value="">Select Product</option>
-                                        <option value="Vehicle Loan">Vehicle Loan</option>
-                                        <option value="MSME Loan">MSME Loan</option>
-                                        <option value="Personal Loan">Personal Loan</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutCaseBookAt">Case Book At</label>
-                                    <input type="text" id="payoutCaseBookAt" name="case_book_at" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutCustomerName">Customer Name</label>
-                                    <input type="text" id="payoutCustomerName" name="customer_name" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutMobile">Mobile</label>
-                                    <input type="tel" id="payoutMobile" name="mobile" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-section">
-                            <h3>Financial Details</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutFinanceAmount">Finance Amount</label>
-                                    <input type="number" step="0.01" id="payoutFinanceAmount" name="finance_amount" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutIrr">IRR (%)</label>
-                                    <input type="number" step="0.01" id="payoutIrr" name="irr" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutStatus">Payout Status</label>
-                                    <select id="payoutStatus" name="payout_status" required>
-                                        <option value="">Select Status</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="Processing">Processing</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Hold">Hold</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutPercent">Payout Percent (%)</label>
-                                    <input type="number" step="0.01" id="payoutPercent" name="payout_percent" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutAmount">Payout Amount</label>
-                                    <input type="number" step="0.01" id="payoutAmount" name="payout_amount" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutGst">GST</label>
-                                    <input type="number" step="0.01" id="payoutGst" name="gst" required>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutTds">TDS</label>
-                                    <input type="number" step="0.01" id="payoutTds" name="tds" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutNetAmountReceived">Net Amount Received</label>
-                                    <input type="number" step="0.01" id="payoutNetAmountReceived" name="net_amount_received" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="payoutGivenToReferrals">Payout Given to Referrals</label>
-                                    <input type="text" id="payoutGivenToReferrals" name="payout_given_to_referrals" required>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="payoutNetPayout">Net Payout</label>
-                                    <input type="number" step="0.01" id="payoutNetPayout" name="net_payout" required>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Save Payout</button>
-                        <button type="reset" class="btn-secondary">Reset Form</button>
-                    </div>
-                </form>
-
-                <!-- Payouts Table -->
-                <div class="table-container">
-                    <h3>Payouts History</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Payout Date</th>
-                                <th>Customer Name</th>
-                                <th>Product</th>
-                                <th>Finance Amount</th>
-                                <th>Payout Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="payoutTableBody">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- User Management Section -->
-            <section id="userManagementSection" class="content-section hidden">
-                <div class="section-header">
-                    <h2>User Management</h2>
-                </div>
-
-                <!-- Create User Form -->
-                <form id="createUserForm" class="loan-form">
-                    <div class="form-grid">
-                        <div class="form-section">
-                            <h3>Create New User</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="createUsername">Username</label>
-                                    <input type="text" id="createUsername" name="username" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="createEmail">Email</label>
-                                    <input type="email" id="createEmail" name="email" required>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="createPassword">Password</label>
-                                    <input type="password" id="createPassword" name="password" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="createRole">Role</label>
-                                    <select id="createRole" name="role" required>
-                                        <option value="">Select Role</option>
-                                        <option value="admin">Admin</option>
-                                        <option value="user">User</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Create User</button>
-                    </div>
-                </form>
-            </section>
-        </main>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
