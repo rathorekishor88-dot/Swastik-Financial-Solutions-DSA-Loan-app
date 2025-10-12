@@ -138,6 +138,8 @@ function initializeDatabase() {
         total_loan_amount REAL,
         emi_amount REAL,
         tenure INTEGER,
+        payout_percent REAL,
+        payout_amount REAL,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, () => console.log('✅ MSME cases table ready'));
@@ -164,6 +166,8 @@ function initializeDatabase() {
         extra_fund REAL,
         tenure_months INTEGER,
         emi_amount REAL,
+        payout_percent REAL,
+        payout_amount REAL,
         co_applicants TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, () => console.log('✅ PL cases table ready'));
@@ -216,7 +220,7 @@ function generateOTP() {
 // Helper function to add to payouts
 function addToPayouts(data, caseType, caseId) {
     const payoutPercent = data.payout_percent || 0.5;
-    const payoutAmount = (data.finance_amount || data.loan_amount || 0) * (payoutPercent / 100);
+    const payoutAmount = data.payout_amount || ((data.finance_amount || data.loan_amount || 0) * (payoutPercent / 100));
     const gst = payoutAmount * 0.18;
     const tds = payoutAmount * 0.05;
     const netAmountReceived = payoutAmount - gst - tds;
@@ -367,7 +371,7 @@ app.get('/api/all-data', (req, res) => {
     });
 });
 
-// Vehicle Cases API - UPDATED with payout fields
+// Vehicle Cases API - FIXED COLUMN COUNT
 app.post('/api/vehicle-cases', (req, res) => {
     const data = req.body;
     
@@ -382,7 +386,7 @@ app.post('/api/vehicle-cases', (req, res) => {
         charges, rto_hold, bt_amount, deferral_hold_company, deferral_hold_our_side, insurance_amount,
         extra_fund, deferral_release_amount, rto_release_amount, total_disbursal, net_release_amount,
         pdd_rc, rto_released_name, status, disbursement_date, payout_percent, payout_amount, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
         data.date, data.month, data.product, data.loan_type, data.case_book_at, data.customer_name, data.address,
@@ -392,11 +396,12 @@ app.post('/api/vehicle-cases', (req, res) => {
         data.rto_hold, data.bt_amount, data.deferral_hold_company, data.deferral_hold_our_side, data.insurance_amount,
         data.extra_fund, data.deferral_release_amount, data.rto_release_amount, data.total_disbursal,
         data.net_release_amount, data.pdd_rc, data.rto_released_name, data.status, data.disbursement_date,
-        data.payout_percent, data.payout_amount, JSON.stringify(data.co_applicants || [])
+        data.payout_percent || 0, data.payout_amount || 0, JSON.stringify(data.co_applicants || [])
     ];
     
     db.run(query, values, function(err) {
         if (err) {
+            console.error('Database error:', err);
             res.json({ success: false, message: err.message });
         } else {
             if (data.status === 'Disbursed') {
@@ -458,7 +463,7 @@ app.put('/api/vehicle-cases/:id', (req, res) => {
         data.rto_hold, data.bt_amount, data.deferral_hold_company, data.deferral_hold_our_side, data.insurance_amount,
         data.extra_fund, data.deferral_release_amount, data.rto_release_amount, data.total_disbursal,
         data.net_release_amount, data.pdd_rc, data.rto_released_name, data.status, data.disbursement_date,
-        data.payout_percent, data.payout_amount, JSON.stringify(data.co_applicants || []), id
+        data.payout_percent || 0, data.payout_amount || 0, JSON.stringify(data.co_applicants || []), id
     ], function(err) {
         if (err) {
             res.json({ success: false, message: err.message });
@@ -468,6 +473,7 @@ app.put('/api/vehicle-cases/:id', (req, res) => {
     });
 });
 
+// Delete Vehicle Case
 app.delete('/api/vehicle-cases/:id', (req, res) => {
     const id = req.params.id;
     
@@ -494,15 +500,16 @@ app.post('/api/msme-cases', (req, res) => {
         date, month, product, case_book_at, customer_name, address, applicant_occupation,
         loan_end_used, mobile, property_type, irr, finance_amount, status, disbursement_date,
         sourcing, sourcing_by, charges, bt_amount, net_amount, extra_fund, total_loan_amount, emi_amount,
-        tenure, co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        tenure, payout_percent, payout_amount, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
         data.date, data.month, data.product, data.case_book_at, data.customer_name, data.address,
         data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
         data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
         data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
-        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || [])
+        data.emi_amount, data.tenure, data.payout_percent || 0, data.payout_amount || 0, 
+        JSON.stringify(data.co_applicants || [])
     ];
     
     db.run(query, values, function(err) {
@@ -553,7 +560,7 @@ app.put('/api/msme-cases/:id', (req, res) => {
         date = ?, month = ?, product = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
         loan_end_used = ?, mobile = ?, property_type = ?, irr = ?, finance_amount = ?, status = ?, disbursement_date = ?,
         sourcing = ?, sourcing_by = ?, charges = ?, bt_amount = ?, net_amount = ?, extra_fund = ?, total_loan_amount = ?, emi_amount = ?,
-        tenure = ?, co_applicants = ?
+        tenure = ?, payout_percent = ?, payout_amount = ?, co_applicants = ?
         WHERE id = ?`;
     
     db.run(query, [
@@ -561,12 +568,28 @@ app.put('/api/msme-cases/:id', (req, res) => {
         data.applicant_occupation, data.loan_end_used, data.mobile, data.property_type, data.irr,
         data.finance_amount, data.status, data.disbursement_date, data.sourcing, data.sourcing_by, 
         data.charges, data.bt_amount, data.net_amount, data.extra_fund, data.total_loan_amount, 
-        data.emi_amount, data.tenure, JSON.stringify(data.co_applicants || []), id
+        data.emi_amount, data.tenure, data.payout_percent || 0, data.payout_amount || 0, 
+        JSON.stringify(data.co_applicants || []), id
     ], function(err) {
         if (err) {
             res.json({ success: false, message: err.message });
         } else {
             res.json({ success: true, message: 'MSME case updated successfully' });
+        }
+    });
+});
+
+// Delete MSME Case
+app.delete('/api/msme-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM msme_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else if (this.changes > 0) {
+            res.json({ success: true, message: 'MSME case deleted successfully' });
+        } else {
+            res.json({ success: false, message: 'Case not found' });
         }
     });
 });
@@ -583,15 +606,16 @@ app.post('/api/pl-cases', (req, res) => {
         date, month, case_book_at, customer_name, address, applicant_occupation,
         loan_end_used, contact_no, roi, loan_amount, status, disbursed_date,
         sourcing, sourcing_by, total_charges, bt_amount, extra_fund, tenure_months, emi_amount,
-        co_applicants
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        payout_percent, payout_amount, co_applicants
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
         data.date, data.month, data.case_book_at, data.customer_name, data.address,
         data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
         data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
         data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
-        data.emi_amount, JSON.stringify(data.co_applicants || [])
+        data.emi_amount, data.payout_percent || 0, data.payout_amount || 0,
+        JSON.stringify(data.co_applicants || [])
     ];
     
     db.run(query, values, function(err) {
@@ -642,7 +666,7 @@ app.put('/api/pl-cases/:id', (req, res) => {
         date = ?, month = ?, case_book_at = ?, customer_name = ?, address = ?, applicant_occupation = ?,
         loan_end_used = ?, contact_no = ?, roi = ?, loan_amount = ?, status = ?, disbursed_date = ?,
         sourcing = ?, sourcing_by = ?, total_charges = ?, bt_amount = ?, extra_fund = ?, tenure_months = ?, emi_amount = ?,
-        co_applicants = ?
+        payout_percent = ?, payout_amount = ?, co_applicants = ?
         WHERE id = ?`;
     
     db.run(query, [
@@ -650,12 +674,28 @@ app.put('/api/pl-cases/:id', (req, res) => {
         data.applicant_occupation, data.loan_end_used, data.contact_no, data.roi,
         data.loan_amount, data.status, data.disbursed_date, data.sourcing, data.sourcing_by,
         data.total_charges, data.bt_amount, data.extra_fund, data.tenure_months,
-        data.emi_amount, JSON.stringify(data.co_applicants || []), id
+        data.emi_amount, data.payout_percent || 0, data.payout_amount || 0,
+        JSON.stringify(data.co_applicants || []), id
     ], function(err) {
         if (err) {
             res.json({ success: false, message: err.message });
         } else {
             res.json({ success: true, message: 'PL case updated successfully' });
+        }
+    });
+});
+
+// Delete PL Case
+app.delete('/api/pl-cases/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM pl_cases WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.json({ success: false, message: err.message });
+        } else if (this.changes > 0) {
+            res.json({ success: true, message: 'PL case deleted successfully' });
+        } else {
+            res.json({ success: false, message: 'Case not found' });
         }
     });
 });
