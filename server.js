@@ -41,32 +41,33 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 function initializeDatabase() {
-    // Users table
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('admin', 'manager', 'user')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_login DATETIME
-    )`, () => {
-        console.log('✅ Users table ready');
+    // Use serialize to ensure tables are created in order
+    db.serialize(() => {
+        // Users table FIRST
+        db.run(`CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('admin', 'manager', 'user')),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_login DATETIME
+        )`, () => {
+            console.log('✅ Users table ready');
+        });
         
-        // Create only admin user by default
+        db.run('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+        
+        // Create admin user
         db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?, ?, ?, ?)`, 
             ['admin', 'admin@swastik.com', 'Admin@123', 'admin'], 
             (err) => {
                 if (!err) console.log('✅ Admin user created: admin@swastik.com');
             }
         );
-        
-        // Create index for faster queries
-        db.run('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-    });
 
-    // Leads table
-    db.run(`CREATE TABLE IF NOT EXISTS leads (
+        // Leads table SECOND (depends on users)
+        db.run(`CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         lead_date TEXT NOT NULL,
         month TEXT NOT NULL,
@@ -115,14 +116,14 @@ function initializeDatabase() {
         FOREIGN KEY(created_by) REFERENCES users(id)
     )`, () => {
         console.log('✅ Leads table ready');
-        // Create indexes for faster queries
-        db.run('CREATE INDEX IF NOT EXISTS idx_leads_created_by ON leads(created_by)');
-        db.run('CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)');
-        db.run('CREATE INDEX IF NOT EXISTS idx_leads_date ON leads(lead_date)');
-        db.run('CREATE INDEX IF NOT EXISTS idx_leads_month ON leads(month)');
     });
+    
+    db.run('CREATE INDEX IF NOT EXISTS idx_leads_created_by ON leads(created_by)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_leads_date ON leads(lead_date)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_leads_month ON leads(month)');
 
-    // Finance Details table
+    // Finance Details table THIRD
     db.run(`CREATE TABLE IF NOT EXISTS finance_details (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         lead_id INTEGER NOT NULL,
@@ -142,10 +143,11 @@ function initializeDatabase() {
         FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
     )`, () => {
         console.log('✅ Finance Details table ready');
-        db.run('CREATE INDEX IF NOT EXISTS idx_finance_lead_id ON finance_details(lead_id)');
     });
+    
+    db.run('CREATE INDEX IF NOT EXISTS idx_finance_lead_id ON finance_details(lead_id)');
 
-    // Payouts table - Enhanced with referral/DSA tracking
+    // Payouts table FOURTH
     db.run(`CREATE TABLE IF NOT EXISTS payouts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         lead_id INTEGER NOT NULL,
@@ -165,11 +167,12 @@ function initializeDatabase() {
         FOREIGN KEY(finance_detail_id) REFERENCES finance_details(id)
     )`, () => {
         console.log('✅ Payouts table ready');
-        db.run('CREATE INDEX IF NOT EXISTS idx_payouts_lead_id ON payouts(lead_id)');
-        db.run('CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(payout_status)');
     });
+    
+    db.run('CREATE INDEX IF NOT EXISTS idx_payouts_lead_id ON payouts(lead_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(payout_status)');
 
-    // Expenses table
+    // Expenses table FIFTH
     db.run(`CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         expense_date TEXT NOT NULL,
@@ -186,9 +189,12 @@ function initializeDatabase() {
         FOREIGN KEY(created_by) REFERENCES users(id)
     )`, () => {
         console.log('✅ Expenses table ready');
-        db.run('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)');
-        db.run('CREATE INDEX IF NOT EXISTS idx_expenses_month ON expenses(expense_month)');
     });
+    
+    db.run('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_expenses_month ON expenses(expense_month)');
+    
+    }); // End of db.serialize()
 }
 
 // Helper function to convert data to CSV
