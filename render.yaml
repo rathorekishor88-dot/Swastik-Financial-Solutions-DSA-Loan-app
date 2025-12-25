@@ -2,10 +2,19 @@ services:
   - type: web
     name: swastik-financial-dsa-loan
     env: node
+    runtime: node
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
     plan: free
     branch: main
+    healthCheckPath: /health
+    # Auto-deploy on push
+    autoDeploy: true
+    # Note: SQLite database will reset on free tier restarts
+    # For persistent data, upgrade to paid plan with disk storage
+    # or migrate to PostgreSQL (also available on free tier)
